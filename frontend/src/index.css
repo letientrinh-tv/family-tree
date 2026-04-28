@@ -1,0 +1,275 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #8B4513;
+  --color-secondary: #F5F0E8;
+  --color-accent: #2D5016;
+  --color-text: #3C2415;
+  --color-border: #C4A882;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #F5F0E8;
+  font-family: 'Lora', Georgia, serif;
+  color: #3C2415;
+  margin: 0;
+  padding: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+/* React Flow wrapper */
+.reactflow-wrapper {
+  background-color: #f0ead8;
+  background-image:
+    radial-gradient(circle, #c4a882 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Decorative horizontal rule */
+.ornament-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: #C4A882;
+}
+.ornament-divider::before,
+.ornament-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #C4A882, transparent);
+}
+
+/* Vintage card style */
+.vintage-card {
+  background: #FDFAF5;
+  border: 1px solid #C4A882;
+  border-radius: 8px;
+  box-shadow: 2px 2px 8px rgba(60, 36, 21, 0.15);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #F5F0E8;
+}
+::-webkit-scrollbar-thumb {
+  background: #C4A882;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8B4513;
+}
+
+/* React Flow custom styles */
+.react-flow__node {
+  font-family: 'Lora', Georgia, serif;
+}
+
+.react-flow__edge-path {
+  stroke: #8B4513;
+  stroke-width: 2;
+}
+
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #2D5016;
+  stroke-width: 3;
+}
+
+.react-flow__controls {
+  background: #FDFAF5;
+  border: 1px solid #C4A882;
+  box-shadow: 2px 2px 8px rgba(60, 36, 21, 0.15);
+}
+
+.react-flow__controls-button {
+  background: #FDFAF5;
+  border-bottom: 1px solid #C4A882;
+  color: #8B4513;
+}
+
+.react-flow__controls-button:hover {
+  background: #F5F0E8;
+}
+
+.react-flow__minimap {
+  border: 1px solid #C4A882;
+  background: #FDFAF5;
+}
+
+/* Input and form styles */
+.form-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #C4A882;
+  border-radius: 6px;
+  background: #FDFAF5;
+  color: #3C2415;
+  font-family: 'Lora', Georgia, serif;
+  font-size: 0.9rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #8B4513;
+  box-shadow: 0 0 0 3px rgba(139, 69, 19, 0.15);
+}
+
+.form-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #5a3820;
+  margin-bottom: 0.35rem;
+}
+
+/* Button styles */
+.btn-primary {
+  background-color: #8B4513;
+  color: #F5F0E8;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  border: 1px solid #7a3d11;
+  font-family: 'Lora', Georgia, serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.btn-primary:hover {
+  background-color: #7a3d11;
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: #8B4513;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  border: 1px solid #8B4513;
+  font-family: 'Lora', Georgia, serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-secondary:hover {
+  background-color: rgba(139, 69, 19, 0.08);
+}
+
+.btn-danger {
+  background-color: #b91c1c;
+  color: #fff;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  border: 1px solid #991b1b;
+  font-family: 'Lora', Georgia, serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-danger:hover {
+  background-color: #991b1b;
+}
+
+.btn-accent {
+  background-color: #2D5016;
+  color: #F5F0E8;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  border: 1px solid #1e3a0f;
+  font-family: 'Lora', Georgia, serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-accent:hover {
+  background-color: #1e3a0f;
+}
+
+/* Loading spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid #C4A882;
+  border-top-color: #8B4513;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* Social login spinner */
+@keyframes gspin {
+  to { transform: rotate(360deg); }
+}
+
+/* Fade-in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+/* Counter animation */
+@keyframes countUp {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Responsive utilities ──────────────────────────────────── */
+@media (max-width: 768px) {
+  .resp-grid-2 { grid-template-columns: 1fr !important; }
+  .resp-grid-3 { grid-template-columns: 1fr !important; }
+  .resp-grid-auto { grid-template-columns: 1fr !important; }
+  .resp-hide { display: none !important; }
+  .resp-stack { flex-direction: column !important; }
+  .resp-full { width: 100% !important; max-width: 100% !important; }
+  .resp-p-sm { padding: 16px !important; }
+  .resp-overflow-x { overflow-x: auto; }
+
+  /* Modal full screen on mobile */
+  .modal-responsive {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100dvh;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Table scroll on mobile */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Admin tabs wrap */
+  .admin-tabs { flex-wrap: wrap !important; }
+  .admin-tabs button { flex: 1 1 auto; font-size: 0.78rem !important; padding: 8px 10px !important; }
+
+  /* Tree editor panel */
+  .tree-panel { width: 100% !important; max-width: 100% !important; font-size: 0.8rem !important; }
+}
