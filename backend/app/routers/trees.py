@@ -31,7 +31,7 @@ def create_tree(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    plan = get_plan(current_user.plan)
+    plan = get_plan(current_user.plan, db)
     tree_count = db.query(models.FamilyTree).filter(models.FamilyTree.user_id == current_user.id).count()
     if tree_count >= plan["trees"]:
         raise HTTPException(

@@ -8,7 +8,8 @@ from sqlalchemy import text
 from .database import engine, SessionLocal
 from . import models
 from .auth import get_password_hash
-from .routers import auth, trees, persons, admin, notifications, billing, print_orders
+from .routers import auth, trees, persons, admin, notifications, billing, print_orders, settings
+from .plans import PLAN_LIMITS
 from .scheduler import start_scheduler, stop_scheduler
 
 # Create upload directory
@@ -41,6 +42,7 @@ app.include_router(admin.router)
 app.include_router(notifications.router)
 app.include_router(billing.router)
 app.include_router(print_orders.router)
+app.include_router(settings.router)
 
 
 def _migrate_notification_columns():
@@ -51,6 +53,8 @@ def _migrate_notification_columns():
             ("facebook_enabled","ALTER TABLE notification_settings ADD COLUMN IF NOT EXISTS facebook_enabled BOOLEAN DEFAULT FALSE"),
             ("facebook_psid",   "ALTER TABLE notification_settings ADD COLUMN IF NOT EXISTS facebook_psid VARCHAR"),
             ("print_orders",    None),  # table created by create_all
+            ("nickname",        "ALTER TABLE persons ADD COLUMN IF NOT EXISTS nickname VARCHAR"),
+            ("notify_events",   "ALTER TABLE persons ADD COLUMN IF NOT EXISTS notify_events BOOLEAN DEFAULT TRUE NOT NULL"),
         ]:
             if ddl:
                 db.execute(text(ddl))
@@ -75,6 +79,26 @@ def startup_event():
 
     # Migrate: add new notification columns if missing
     _migrate_notification_columns()
+
+    # Seed plan_settings with defaults if empty
+    db2: Session = SessionLocal()
+    try:
+        for key, cfg in PLAN_LIMITS.items():
+            if not db2.query(models.PlanSetting).filter_by(key=key).first():
+                db2.add(models.PlanSetting(
+                    key=key,
+                    label=cfg["label"],
+                    trees=cfg["trees"],
+                    members_per_tree=cfg["members_per_tree"],
+                    price=cfg["price"],
+                    description="",
+                ))
+        db2.commit()
+    except Exception as e:
+        db2.rollback()
+        print(f"Plan seed warning: {e}")
+    finally:
+        db2.close()
 
     # Create default admin user if not exists
     db: Session = SessionLocal()

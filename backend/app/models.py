@@ -63,6 +63,7 @@ class Person(Base):
     id = Column(Integer, primary_key=True, index=True)
     tree_id = Column(Integer, ForeignKey("family_trees.id"), nullable=False)
     full_name = Column(String, nullable=False)
+    nickname = Column(String, nullable=True)
     birth_date = Column(String, nullable=True)
     death_date = Column(String, nullable=True)
     gender = Column(String, default="unknown", nullable=False)
@@ -70,6 +71,7 @@ class Person(Base):
     biography = Column(Text, nullable=True)
     occupation = Column(String, nullable=True)
     burial_place = Column(String, nullable=True)
+    notify_events = Column(Boolean, default=True, nullable=False)
     position_x = Column(Float, default=0.0)
     position_y = Column(Float, default=0.0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -147,6 +149,31 @@ class PrintOrder(Base):
 
     user = relationship("User")
     tree = relationship("FamilyTree")
+
+
+class PlanSetting(Base):
+    __tablename__ = "plan_settings"
+
+    key = Column(String, primary_key=True)       # free, basic, standard, premium
+    label = Column(String, nullable=False)
+    trees = Column(Integer, nullable=False)
+    members_per_tree = Column(Integer, nullable=False)
+    price = Column(Integer, nullable=False)       # VND/năm
+    description = Column(String, default="", nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class BankSetting(Base):
+    __tablename__ = "bank_settings"
+
+    id = Column(Integer, primary_key=True, default=1)
+    bank_name = Column(String, default="", nullable=False)
+    account_number = Column(String, default="", nullable=False)
+    account_holder = Column(String, default="", nullable=False)
+    bank_branch = Column(String, default="", nullable=False)
+    transfer_content = Column(String, default="", nullable=False)
+    qr_code_url = Column(String, nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class Relationship(Base):

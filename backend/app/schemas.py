@@ -70,18 +70,21 @@ class FamilyTreeWithOwner(FamilyTreeResponse):
 # ── Person Schemas ────────────────────────────────────────────
 class PersonCreate(BaseModel):
     full_name: str
+    nickname: Optional[str] = None
     birth_date: Optional[str] = None
     death_date: Optional[str] = None
     gender: Optional[str] = "unknown"
     biography: Optional[str] = None
     occupation: Optional[str] = None
     burial_place: Optional[str] = None
+    notify_events: Optional[bool] = True
     position_x: Optional[float] = 0.0
     position_y: Optional[float] = 0.0
 
 
 class PersonUpdate(BaseModel):
     full_name: Optional[str] = None
+    nickname: Optional[str] = None
     birth_date: Optional[str] = None
     death_date: Optional[str] = None
     gender: Optional[str] = None
@@ -89,6 +92,7 @@ class PersonUpdate(BaseModel):
     occupation: Optional[str] = None
     burial_place: Optional[str] = None
     photo_url: Optional[str] = None
+    notify_events: Optional[bool] = None
 
 
 class PersonPositionUpdate(BaseModel):
@@ -100,6 +104,7 @@ class PersonResponse(BaseModel):
     id: int
     tree_id: int
     full_name: str
+    nickname: Optional[str] = None
     birth_date: Optional[str] = None
     death_date: Optional[str] = None
     gender: str
@@ -107,6 +112,7 @@ class PersonResponse(BaseModel):
     biography: Optional[str] = None
     occupation: Optional[str] = None
     burial_place: Optional[str] = None
+    notify_events: bool = True
     position_x: float
     position_y: float
     created_at: datetime

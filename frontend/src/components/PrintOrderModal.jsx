@@ -1,32 +1,16 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import toast from 'react-hot-toast'
 import apiClient from '../api/client'
 
 const TEMPLATES = [
-  {
-    id: 'truyen_thong',
-    name: 'Truyền thống',
-    desc: 'Hoa văn dân tộc Việt Nam',
-    primary: '#8B4513', border: '#C4A882', bg: '#FDF8F0', accent: '#D4A017',
-  },
-  {
-    id: 'thien_nhien',
-    name: 'Thiên nhiên',
-    desc: 'Tre xanh, lá cây tự nhiên',
-    primary: '#2D5016', border: '#4a7c2a', bg: '#F0F8EC', accent: '#6B9E45',
-  },
-  {
-    id: 'hoang_gia',
-    name: 'Hoàng gia',
-    desc: 'Phong cách cung đình hoàng gia',
-    primary: '#7c5c00', border: '#c9a227', bg: '#FFF8E8', accent: '#c9a227',
-  },
-  {
-    id: 'hien_dai',
-    name: 'Hiện đại',
-    desc: 'Thiết kế tối giản, sang trọng',
-    primary: '#1a1a2e', border: '#3a3a5c', bg: '#F8F8FC', accent: '#6c63ff',
-  },
+  { id: 'truyen_thong', name: 'Truyền thống',  desc: 'Hoa văn dân tộc Việt Nam',          primary: '#8B4513', border: '#C4A882', bg: '#FDF8F0', accent: '#D4A017', bgImage: '/backgrounds/img1.png' },
+  { id: 'thien_nhien', name: 'Thiên nhiên',    desc: 'Tre xanh, lá cây tự nhiên',          primary: '#2D5016', border: '#4a7c2a', bg: '#F0F8EC', accent: '#6B9E45', bgImage: '/backgrounds/img2.png' },
+  { id: 'hoang_gia',   name: 'Hoàng gia',      desc: 'Phong cách cung đình hoàng gia',      primary: '#7c5c00', border: '#c9a227', bg: '#FFF8E8', accent: '#c9a227', bgImage: '/backgrounds/img3.png' },
+  { id: 'hien_dai',    name: 'Hiện đại',        desc: 'Thiết kế tối giản, sang trọng',       primary: '#1a1a2e', border: '#3a3a5c', bg: '#F8F8FC', accent: '#6c63ff', bgImage: '/backgrounds/img4.png' },
+  { id: 'co_dien',     name: 'Cổ điển',         desc: 'Phong cách châu Á cổ xưa',            primary: '#5C3317', border: '#8B6043', bg: '#FFF5E6', accent: '#B8860B', bgImage: '/backgrounds/img5.png' },
+  { id: 'lang_que',    name: 'Làng quê',        desc: 'Bình yên, gần gũi thiên nhiên',       primary: '#3B5323', border: '#6B7C3A', bg: '#F2F5E8', accent: '#8FAF3C', bgImage: '/backgrounds/img6.png' },
+  { id: 'trang_trong', name: 'Trang trọng',    desc: 'Sang trọng, đẳng cấp',                primary: '#2C2C54', border: '#7F5AF0', bg: '#F5F3FF', accent: '#7F5AF0', bgImage: '/backgrounds/img7.png' },
+  { id: 'tuy_chinh',   name: '+ Tự tải lên',   desc: 'Dùng ảnh nền của riêng bạn',          primary: '#555',    border: '#999',    bg: '#F5F5F5', accent: '#888',    bgImage: null },
 ]
 
 const SIZES = [
@@ -56,15 +40,22 @@ function CornerOrnament({ color, size = 40, flip = '' }) {
   )
 }
 
-function FramePreview({ templateId, treeImage, treeName, width = 280, height = 200 }) {
+function FramePreview({ templateId, treeImage, treeName, bgImageOverride, width = 280, height = 200 }) {
   const t = TEMPLATES.find(x => x.id === templateId) || TEMPLATES[0]
   const bw = 14
+  const activeBg = bgImageOverride ?? t.bgImage
   return (
     <div style={{
       width, height, position: 'relative', boxSizing: 'border-box',
       border: `${bw}px solid ${t.border}`,
       outline: `2px solid ${t.accent}`, outlineOffset: '-3px',
-      background: t.bg, borderRadius: 3, overflow: 'hidden',
+      background: t.bg,
+      ...(activeBg ? {
+        backgroundImage: `url(${activeBg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      } : {}),
+      borderRadius: 3, overflow: 'hidden',
       display: 'flex', flexDirection: 'column',
     }}>
       {/* Corners */}
@@ -92,7 +83,7 @@ function FramePreview({ templateId, treeImage, treeName, width = 280, height = 2
       </div>
 
       {/* Tree image */}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F0E8' }}>
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: activeBg ? 'transparent' : '#F5F0E8' }}>
         {treeImage
           ? <img src={treeImage} style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="family tree" />
           : <div style={{ color: t.border, fontSize: '0.68rem', textAlign: 'center', padding: 6 }}>
@@ -117,13 +108,18 @@ function FramePreview({ templateId, treeImage, treeName, width = 280, height = 2
 export default function PrintOrderModal({ onClose, treeId, treeName, getTreeImage }) {
   const [step, setStep] = useState(1)
   const [template, setTemplate] = useState('truyen_thong')
+  const [customBg, setCustomBg] = useState(null)      // data URL của ảnh user tự upload
+  const [customBgName, setCustomBgName] = useState('') // tên file
+  const [customBgSize, setCustomBgSize] = useState('') // kích thước file
   const [size, setSize] = useState('A2')
   const [treeImage, setTreeImage] = useState(null)
   const [loadingImage, setLoadingImage] = useState(false)
   const [form, setForm] = useState({ recipient_name: '', phone: '', address: '', city: '', notes: '' })
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [bankInfo, setBankInfo] = useState(null)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
+  const uploadInputRef = useRef(null)
   useEffect(() => {
     const h = () => setIsMobile(window.innerWidth < 768)
     window.addEventListener('resize', h)
@@ -140,14 +136,45 @@ export default function PrintOrderModal({ onClose, treeId, treeName, getTreeImag
     }
   }, [step])
 
+  const handleCustomBgUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { toast.error('Vui lòng chọn file ảnh'); return }
+    const sizeMB = (file.size / 1024 / 1024).toFixed(2)
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const img = new Image()
+      img.onload = () => {
+        setCustomBg(ev.target.result)
+        setCustomBgName(file.name)
+        setCustomBgSize(`${img.width} × ${img.height} px · ${sizeMB} MB`)
+      }
+      img.src = ev.target.result
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // Resolve background for FramePreview: custom upload or template preset
+  const resolvedBgImage = template === 'tuy_chinh'
+    ? customBg
+    : (TEMPLATES.find(t => t.id === template)?.bgImage ?? null)
+
+  const validatePhone = (phone) => {
+    const normalized = phone.replace(/[\s\-\.]/g, '')
+    return /^(\+84|0)(3[2-9]|5[6-9]|7[06-9]|8[0-9]|9[0-9])\d{7}$/.test(normalized)
+  }
+
   const handleSubmit = async () => {
     if (!form.recipient_name.trim()) { toast.error('Vui lòng nhập tên người nhận'); return }
     if (!form.phone.trim()) { toast.error('Vui lòng nhập số điện thoại'); return }
+    if (!validatePhone(form.phone)) { toast.error('Số điện thoại không hợp lệ (VD: 0912 345 678)'); return }
     if (!form.address.trim()) { toast.error('Vui lòng nhập địa chỉ'); return }
     if (!form.city.trim()) { toast.error('Vui lòng nhập tỉnh/thành phố'); return }
     setSubmitting(true)
     try {
       await apiClient.post('/print-orders', { tree_id: treeId, tree_name: treeName, template, size, ...form })
+      const bankRes = await apiClient.get('/settings/bank').catch(() => ({ data: null }))
+      setBankInfo(bankRes.data)
       setSubmitted(true)
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Gửi đơn thất bại')
@@ -208,6 +235,30 @@ export default function PrintOrderModal({ onClose, treeId, treeName, getTreeImag
                   </div>
                 ))}
               </div>
+              {/* Bank info */}
+              {bankInfo && (bankInfo.account_number || bankInfo.qr_code_url) && (
+                <div style={{ margin: '0 auto 20px', maxWidth: 400, background: '#FFF8E8', border: '1px solid #c9a227', borderRadius: 10, padding: '16px 18px', textAlign: 'left' }}>
+                  <div style={{ fontWeight: 700, color: '#7c5c00', marginBottom: 10, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    🏦 Thông tin chuyển khoản
+                  </div>
+                  <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1, fontSize: '0.85rem', lineHeight: 2, color: '#3C2415' }}>
+                      {bankInfo.bank_name && <div><span style={{ color: '#9a7c60' }}>Ngân hàng:</span> <strong>{bankInfo.bank_name}</strong></div>}
+                      {bankInfo.account_number && <div><span style={{ color: '#9a7c60' }}>Số TK:</span> <strong style={{ fontSize: '1rem', letterSpacing: '0.05em' }}>{bankInfo.account_number}</strong></div>}
+                      {bankInfo.account_holder && <div><span style={{ color: '#9a7c60' }}>Chủ TK:</span> <strong>{bankInfo.account_holder}</strong></div>}
+                      {bankInfo.bank_branch && <div><span style={{ color: '#9a7c60' }}>Chi nhánh:</span> {bankInfo.bank_branch}</div>}
+                      {bankInfo.transfer_content && <div style={{ marginTop: 4, fontSize: '0.78rem', background: '#FEF3C7', borderRadius: 5, padding: '4px 8px', color: '#7c5c00', fontStyle: 'italic' }}>
+                        Nội dung: {bankInfo.transfer_content}
+                      </div>}
+                    </div>
+                    {bankInfo.qr_code_url && (
+                      <img src={bankInfo.qr_code_url} alt="QR chuyển khoản"
+                        style={{ width: 100, height: 100, objectFit: 'contain', border: '1px solid #c9a227', borderRadius: 6, flexShrink: 0 }} />
+                    )}
+                  </div>
+                </div>
+              )}
+
               <button onClick={onClose} className="btn-primary" style={{ padding: '9px 28px' }}>Đóng</button>
             </div>
           )}
@@ -216,30 +267,61 @@ export default function PrintOrderModal({ onClose, treeId, treeName, getTreeImag
           {!submitted && step === 1 && (
             <div>
               <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#7a5c3e', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Chọn khung tranh</div>
-              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 14, marginBottom: 22 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
                 {TEMPLATES.map(t => (
                   <div key={t.id}
-                    onClick={() => setTemplate(t.id)}
+                    onClick={() => { setTemplate(t.id); if (t.id === 'tuy_chinh') uploadInputRef.current?.click() }}
                     style={{
                       cursor: 'pointer', borderRadius: 10,
                       border: `2px solid ${template === t.id ? t.primary : '#C4A882'}`,
-                      padding: 12, background: template === t.id ? t.bg : '#FDFAF5',
+                      padding: 8, background: template === t.id ? t.bg : '#FDFAF5',
                       transition: 'all 0.15s',
                       boxShadow: template === t.id ? `0 2px 12px ${t.primary}30` : 'none',
                     }}>
-                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
-                      <FramePreview templateId={t.id} treeImage={null} treeName={treeName} width={220} height={148} />
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6 }}>
+                      {t.id === 'tuy_chinh'
+                        ? <div style={{ width: 140, height: 96, border: '2px dashed #999', borderRadius: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, background: customBg ? `url(${customBg}) center/cover` : '#F5F5F5' }}>
+                            {!customBg && <><span style={{ fontSize: '1.6rem' }}>📁</span><span style={{ fontSize: '0.65rem', color: '#888' }}>Chọn ảnh</span></>}
+                          </div>
+                        : <FramePreview templateId={t.id} treeImage={null} treeName={treeName} width={140} height={96} />
+                      }
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {template === t.id && <span style={{ color: t.primary, fontWeight: 700 }}>✓</span>}
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: t.primary }}>{t.name}</div>
-                        <div style={{ fontSize: '0.74rem', color: '#7a5c3e' }}>{t.desc}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {template === t.id && <span style={{ color: t.primary, fontWeight: 700, fontSize: '0.8rem' }}>✓</span>}
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.78rem', color: t.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</div>
+                        <div style={{ fontSize: '0.65rem', color: '#7a5c3e', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.desc}</div>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
+
+              {/* Hidden file input for custom bg */}
+              <input ref={uploadInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCustomBgUpload} />
+
+              {/* Custom bg info */}
+              {template === 'tuy_chinh' && (
+                <div style={{ marginBottom: 16, padding: '10px 14px', background: '#F5F0E8', borderRadius: 8, border: '1px solid #C4A882', fontSize: '0.8rem', color: '#5a3820' }}>
+                  {customBg ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <img src={customBg} style={{ width: 48, height: 36, objectFit: 'cover', borderRadius: 4, border: '1px solid #C4A882' }} alt="" />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{customBgName}</div>
+                        <div style={{ fontSize: '0.72rem', color: '#7a5c3e', marginTop: 2 }}>{customBgSize}</div>
+                      </div>
+                      <button onClick={() => uploadInputRef.current?.click()}
+                        style={{ padding: '4px 10px', borderRadius: 5, border: '1px solid #8B4513', background: 'transparent', color: '#8B4513', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        Đổi ảnh
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', color: '#888' }}>
+                      Nhấn vào ô <strong>+ Tự tải lên</strong> để chọn ảnh nền của bạn
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#7a5c3e', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Kích thước in</div>
               <div style={{ display: 'flex', gap: 10 }}>
@@ -272,7 +354,7 @@ export default function PrintOrderModal({ onClose, treeId, treeName, getTreeImag
                         <div className="spinner" />
                         <span style={{ fontSize: '0.75rem', color: '#9a7c60' }}>Đang tải sơ đồ...</span>
                       </div>
-                    : <FramePreview templateId={template} treeImage={treeImage} treeName={treeName} width={280} height={210} />
+                    : <FramePreview templateId={template} treeImage={treeImage} treeName={treeName} bgImageOverride={resolvedBgImage} width={280} height={210} />
                   }
                 </div>
                 <div style={{ background: '#F5F0E8', borderRadius: 8, padding: '10px 14px', border: '1px solid #C4A882', fontSize: '0.8rem', color: '#5a3820', lineHeight: 1.7 }}>
@@ -295,7 +377,18 @@ export default function PrintOrderModal({ onClose, treeId, treeName, getTreeImag
                   </div>
                   <div>
                     <label style={lblS}>Số điện thoại *</label>
-                    <input style={inpS} type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} placeholder="0912 345 678" />
+                    <input
+                      style={{ ...inpS, borderColor: form.phone && !validatePhone(form.phone) ? '#C0392B' : '#C4A882' }}
+                      type="tel"
+                      value={form.phone}
+                      onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                      placeholder="0912 345 678"
+                    />
+                    {form.phone && !validatePhone(form.phone) && (
+                      <div style={{ color: '#C0392B', fontSize: '0.72rem', marginTop: 4 }}>
+                        Số không hợp lệ — nhập 10 số bắt đầu bằng 03x / 05x / 07x / 08x / 09x
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label style={lblS}>Địa chỉ *</label>

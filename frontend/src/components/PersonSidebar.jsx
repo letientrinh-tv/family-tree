@@ -1,17 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react'
 import toast from 'react-hot-toast'
 import apiClient from '../api/client'
+import DatePicker from './DatePicker'
 
 export default function PersonSidebar({ person, relationships, persons, onClose, onSave, onDelete, onAddRelative }) {
   const [formData, setFormData] = useState({
     full_name: '',
+    nickname: '',
     gender: 'unknown',
     birth_date: '',
     death_date: '',
     occupation: '',
     burial_place: '',
     biography: '',
+    notify_events: true,
   })
+  const [isAlive, setIsAlive] = useState(true)
   const [photoPreview, setPhotoPreview] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -20,14 +24,18 @@ export default function PersonSidebar({ person, relationships, persons, onClose,
 
   useEffect(() => {
     if (person) {
+      const alive = !person.death_date
+      setIsAlive(alive)
       setFormData({
         full_name: person.full_name || '',
+        nickname: person.nickname || '',
         gender: person.gender || 'unknown',
         birth_date: person.birth_date || '',
         death_date: person.death_date || '',
         occupation: person.occupation || '',
         burial_place: person.burial_place || '',
         biography: person.biography || '',
+        notify_events: person.notify_events !== false,
       })
       setPhotoPreview(person.photo_url || null)
       setConfirmDelete(false)
@@ -246,28 +254,60 @@ export default function PersonSidebar({ person, relationships, persons, onClose,
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            <div>
-              <label className={labelClass}>Ngày sinh</label>
-              <input
-                name="birth_date"
-                value={formData.birth_date}
-                onChange={handleChange}
-                className={inputClass}
-                placeholder="VD: 1950 hoặc 15/3/1950"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>Ngày mất</label>
-              <input
-                name="death_date"
-                value={formData.death_date}
-                onChange={handleChange}
-                className={inputClass}
-                placeholder="Để trống nếu còn sống"
-              />
+          {/* Bí danh */}
+          <div>
+            <label className={labelClass}>Bí danh</label>
+            <input
+              name="nickname"
+              value={formData.nickname}
+              onChange={handleChange}
+              className={inputClass}
+              placeholder="Tên thường gọi, hiệu..."
+            />
+          </div>
+
+          {/* Còn sống / Đã mất */}
+          <div>
+            <label className={labelClass}>Tình trạng</label>
+            <div style={{ display: 'flex', gap: '16px', marginTop: '4px' }}>
+              {[{ v: true, l: '✔ Còn sống', c: '#2D5016' }, { v: false, l: '✝ Đã mất', c: '#8B4513' }].map(o => (
+                <label key={String(o.v)} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.85rem', color: isAlive === o.v ? o.c : '#9a7c60', fontWeight: isAlive === o.v ? 700 : 400 }}>
+                  <input
+                    type="radio"
+                    checked={isAlive === o.v}
+                    onChange={() => {
+                      setIsAlive(o.v)
+                      if (o.v) setFormData(p => ({ ...p, death_date: '' }))
+                    }}
+                    style={{ accentColor: o.c }}
+                  />
+                  {o.l}
+                </label>
+              ))}
             </div>
           </div>
+
+          {/* Ngày sinh */}
+          <div>
+            <label className={labelClass}>Ngày sinh</label>
+            <DatePicker
+              value={formData.birth_date}
+              onChange={(val) => setFormData(p => ({ ...p, birth_date: val }))}
+              placeholder="Năm sinh"
+            />
+          </div>
+
+          {/* Ngày mất — chỉ hiện khi Đã mất */}
+          {!isAlive && (
+            <div>
+              <label className={labelClass}>Ngày mất</label>
+              <DatePicker
+                value={formData.death_date}
+                onChange={(val) => setFormData(p => ({ ...p, death_date: val }))}
+                placeholder="Năm mất"
+              />
+            </div>
+          )}
 
           <div>
             <label className={labelClass}>Nghề nghiệp</label>
@@ -280,16 +320,18 @@ export default function PersonSidebar({ person, relationships, persons, onClose,
             />
           </div>
 
-          <div>
-            <label className={labelClass}>Nơi an táng</label>
-            <input
-              name="burial_place"
-              value={formData.burial_place}
-              onChange={handleChange}
-              className={inputClass}
-              placeholder="Địa điểm an táng (nếu có)"
-            />
-          </div>
+          {!isAlive && (
+            <div>
+              <label className={labelClass}>Nơi an táng</label>
+              <input
+                name="burial_place"
+                value={formData.burial_place}
+                onChange={handleChange}
+                className={inputClass}
+                placeholder="Địa điểm an táng (nếu có)"
+              />
+            </div>
+          )}
 
           <div>
             <label className={labelClass}>Tiểu sử / Ghi chú</label>
@@ -303,6 +345,41 @@ export default function PersonSidebar({ person, relationships, persons, onClose,
               style={{ resize: 'vertical' }}
             />
           </div>
+        </div>
+
+        {/* Notification settings */}
+        <div style={{ marginTop: '12px', padding: '10px 12px', background: '#F0F5EC', borderRadius: '8px', border: '1px solid #C4D9B0' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={formData.notify_events}
+              onChange={e => setFormData(p => ({ ...p, notify_events: e.target.checked }))}
+              style={{ accentColor: '#2D5016', width: 15, height: 15 }}
+            />
+            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#2D5016' }}>Nhận thông báo sự kiện</span>
+          </label>
+          {formData.notify_events && (
+            <div style={{ marginTop: '6px', paddingLeft: '23px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              {(() => {
+                const parseDM = (d) => {
+                  if (!d) return null
+                  if (d.includes('/')) { const p = d.split('/'); if (p.length === 3) return { day: p[0], month: p[1] } }
+                  if (d.includes('-')) { const p = d.split('-'); if (p.length === 3) return { day: parseInt(p[2]), month: parseInt(p[1]) } }
+                  return null
+                }
+                const items = []
+                const bd = parseDM(formData.birth_date)
+                const dd = parseDM(formData.death_date)
+                if (isAlive && bd) items.push({ icon: '🎂', text: `Sinh nhật: ngày ${bd.day} tháng ${bd.month} hàng năm` })
+                if (!isAlive && dd) items.push({ icon: '🕯️', text: `Ngày giỗ: ngày ${dd.day} tháng ${dd.month} hàng năm` })
+                if (items.length === 0)
+                  return <p style={{ fontSize: '0.75rem', color: '#7a9c60', margin: 0 }}>Chọn ngày đầy đủ để nhận nhắc nhở.</p>
+                return items.map((it, i) => (
+                  <div key={i} style={{ fontSize: '0.75rem', color: '#3C6020' }}>{it.icon} {it.text}</div>
+                ))
+              })()}
+            </div>
+          )}
         </div>
 
         {/* Relationship summary */}

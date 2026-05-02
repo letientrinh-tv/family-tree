@@ -15,12 +15,16 @@ from . import models
 # ── Email ─────────────────────────────────────────────────────
 
 def _smtp_config():
+    username = os.getenv("SMTP_USERNAME", "")
+    from_email = os.getenv("SMTP_FROM_EMAIL", os.getenv("SMTP_FROM", username))
+    from_name = os.getenv("SMTP_FROM_NAME", "Gia Phả Việt")
     return {
         "host": os.getenv("SMTP_HOST", "smtp.gmail.com"),
         "port": int(os.getenv("SMTP_PORT", "587")),
-        "username": os.getenv("SMTP_USERNAME", ""),
+        "username": username,
         "password": os.getenv("SMTP_PASSWORD", ""),
-        "from_email": os.getenv("SMTP_FROM", os.getenv("SMTP_USERNAME", "")),
+        "from_email": from_email,
+        "from_addr": f"{from_name} <{from_email}>" if from_name else from_email,
     }
 
 
@@ -31,7 +35,7 @@ def send_email(to_email: str, subject: str, body_html: str) -> tuple:
     try:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
-        msg["From"] = cfg["from_email"]
+        msg["From"] = cfg["from_addr"]
         msg["To"] = to_email
         msg.attach(MIMEText(body_html, "html"))
         with smtplib.SMTP(cfg["host"], cfg["port"]) as server:
@@ -126,14 +130,20 @@ def send_facebook(psid: str, message: str) -> tuple:
 # ── Event helpers ─────────────────────────────────────────────
 
 def _parse_month_day(date_str: str) -> tuple:
+    """Return (month, day) or (None, None) if not parseable.
+    Handles D/M/YYYY (stored format) and YYYY-MM-DD (ISO)."""
     if not date_str:
         return None, None
-    parts = date_str.split("-")
+    date_str = date_str.strip()
     try:
-        if len(parts) == 3:
-            return int(parts[1]), int(parts[2])
-        if len(parts) == 2:
-            return int(parts[0]), int(parts[1])
+        if "/" in date_str:
+            parts = date_str.split("/")
+            if len(parts) == 3:          # D/M/YYYY
+                return int(parts[1]), int(parts[0])
+        elif "-" in date_str:
+            parts = date_str.split("-")
+            if len(parts) == 3:          # YYYY-MM-DD
+                return int(parts[1]), int(parts[2])
     except (ValueError, IndexError):
         pass
     return None, None
@@ -145,6 +155,8 @@ def get_upcoming_events(db: Session, user_id: int, days_window: int = 30) -> Lis
     trees = db.query(models.FamilyTree).filter(models.FamilyTree.user_id == user_id).all()
     for tree in trees:
         for person in tree.persons:
+            if not getattr(person, "notify_events", True):
+                continue
             for event_type, date_str in [
                 ("birthday", person.birth_date),
                 ("death_anniversary", person.death_date),

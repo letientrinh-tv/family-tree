@@ -30,8 +30,14 @@ const PersonNode = memo(({ data, selected }) => {
   const [hovered, setHovered] = useState(false)
   const colors = genderColors[data.gender] || genderColors.unknown
 
-  const birthYear = data.birth_date ? data.birth_date.split('-')[0] || data.birth_date : null
-  const deathYear = data.death_date ? data.death_date.split('-')[0] || data.death_date : null
+  const extractYear = (d) => {
+    if (!d) return null
+    if (d.includes('/')) { const p = d.split('/'); return p[p.length - 1] || d }
+    if (d.includes('-')) return d.split('-')[0]
+    return d
+  }
+  const birthYear = extractYear(data.birth_date)
+  const deathYear = extractYear(data.death_date)
 
   let lifespan = ''
   if (birthYear && deathYear) {
@@ -136,6 +142,9 @@ const PersonNode = memo(({ data, selected }) => {
           <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#3C2415', lineHeight: 1.3, wordBreak: 'break-word' }}>
             {data.full_name}
           </div>
+          {data.nickname && (
+            <div style={{ fontSize: '0.7rem', color: '#8B4513', fontStyle: 'italic', marginTop: 1 }}>"{data.nickname}"</div>
+          )}
           {lifespan && (
             <div style={{ fontSize: '0.7rem', color: '#7a5c3e', marginTop: 2 }}>{lifespan}</div>
           )}

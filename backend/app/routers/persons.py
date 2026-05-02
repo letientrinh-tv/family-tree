@@ -46,7 +46,7 @@ def add_person(
 ):
     get_tree_and_check_access(tree_id, current_user, db)
 
-    plan = get_plan(current_user.plan)
+    plan = get_plan(current_user.plan, db)
     member_count = db.query(models.Person).filter(models.Person.tree_id == tree_id).count()
     if member_count >= plan["members_per_tree"]:
         raise HTTPException(
@@ -58,12 +58,14 @@ def add_person(
     new_person = models.Person(
         tree_id=tree_id,
         full_name=person_data.full_name,
+        nickname=person_data.nickname,
         birth_date=person_data.birth_date,
         death_date=person_data.death_date,
         gender=person_data.gender or "unknown",
         biography=person_data.biography,
         occupation=person_data.occupation,
         burial_place=person_data.burial_place,
+        notify_events=person_data.notify_events if person_data.notify_events is not None else True,
         position_x=person_data.position_x or 0.0,
         position_y=person_data.position_y or 0.0,
     )

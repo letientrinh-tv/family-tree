@@ -180,6 +180,238 @@ function UserModal({ user, onClose, onSaved }) {
   )
 }
 
+// ── Bank Settings Panel ───────────────────────────────────────
+function BankSettingsPanel() {
+  const [form, setForm] = useState({ bank_name: '', account_number: '', account_holder: '', bank_branch: '', transfer_content: '' })
+  const [qrUrl, setQrUrl] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [uploadingQr, setUploadingQr] = useState(false)
+  const qrInputRef = React.useRef(null)
+
+  useEffect(() => {
+    apiClient.get('/settings/bank').then(res => {
+      setForm({
+        bank_name: res.data.bank_name || '',
+        account_number: res.data.account_number || '',
+        account_holder: res.data.account_holder || '',
+        bank_branch: res.data.bank_branch || '',
+        transfer_content: res.data.transfer_content || '',
+      })
+      setQrUrl(res.data.qr_code_url || null)
+    }).catch(() => {})
+  }, [])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await apiClient.put('/settings/bank', form)
+      toast.success('Đã lưu thông tin ngân hàng')
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Lưu thất bại')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleQrUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingQr(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      const res = await apiClient.post('/settings/bank/qr', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      setQrUrl(res.data.qr_code_url)
+      toast.success('Đã tải lên QR code')
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Tải lên thất bại')
+    } finally {
+      setUploadingQr(false)
+    }
+  }
+
+  const lS = { display: 'block', fontSize: '0.78rem', color: '#7a5c3e', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.03em' }
+  const iS = { width: '100%', padding: '9px 12px', border: '1px solid #C4A882', borderRadius: 6, background: '#FDFAF5', color: '#3C2415', fontFamily: 'Lora,Georgia,serif', fontSize: '0.88rem', boxSizing: 'border-box' }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 32, alignItems: 'start' }}>
+      {/* Form */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div>
+          <label style={lS}>Tên ngân hàng</label>
+          <input style={iS} value={form.bank_name} onChange={e => setForm(f => ({ ...f, bank_name: e.target.value }))} placeholder="VD: Vietcombank, MB Bank, Techcombank..." />
+        </div>
+        <div>
+          <label style={lS}>Số tài khoản</label>
+          <input style={iS} value={form.account_number} onChange={e => setForm(f => ({ ...f, account_number: e.target.value }))} placeholder="VD: 1234567890" />
+        </div>
+        <div>
+          <label style={lS}>Chủ tài khoản</label>
+          <input style={iS} value={form.account_holder} onChange={e => setForm(f => ({ ...f, account_holder: e.target.value }))} placeholder="VD: NGUYEN VAN A" />
+        </div>
+        <div>
+          <label style={lS}>Chi nhánh</label>
+          <input style={iS} value={form.bank_branch} onChange={e => setForm(f => ({ ...f, bank_branch: e.target.value }))} placeholder="VD: CN Hà Nội" />
+        </div>
+        <div>
+          <label style={lS}>Nội dung chuyển khoản gợi ý</label>
+          <input style={iS} value={form.transfer_content} onChange={e => setForm(f => ({ ...f, transfer_content: e.target.value }))} placeholder="VD: Thanh toan in tranh gia pha [ten]" />
+        </div>
+        <div>
+          <button onClick={handleSave} disabled={saving}
+            style={{ padding: '10px 28px', background: '#2D5016', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontFamily: 'Lora,Georgia,serif', fontWeight: 700, fontSize: '0.9rem', opacity: saving ? 0.7 : 1 }}>
+            {saving ? 'Đang lưu...' : '💾 Lưu thông tin'}
+          </button>
+        </div>
+      </div>
+
+      {/* QR Code */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, minWidth: 180 }}>
+        <div style={{ fontSize: '0.78rem', color: '#7a5c3e', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', alignSelf: 'flex-start' }}>Ảnh QR Code</div>
+        <div
+          onClick={() => qrInputRef.current?.click()}
+          style={{ width: 160, height: 160, border: '2px dashed #C4A882', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F0E8', position: 'relative' }}>
+          {uploadingQr && (
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="spinner" />
+            </div>
+          )}
+          {qrUrl
+            ? <img src={qrUrl} alt="QR" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            : <div style={{ textAlign: 'center', color: '#9a7c60', fontSize: '0.78rem' }}>
+                <div style={{ fontSize: '2rem', marginBottom: 4 }}>📷</div>
+                Nhấn để tải QR
+              </div>
+          }
+        </div>
+        <input ref={qrInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleQrUpload} />
+        {qrUrl && (
+          <button onClick={() => qrInputRef.current?.click()}
+            style={{ padding: '5px 14px', border: '1px solid #8B4513', background: 'transparent', color: '#8B4513', borderRadius: 6, cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'Lora,Georgia,serif', fontWeight: 600 }}>
+            Đổi QR
+          </button>
+        )}
+        <div style={{ fontSize: '0.7rem', color: '#9a7c60', textAlign: 'center', maxWidth: 160 }}>
+          Ảnh QR hiển thị cho khách sau khi đặt in
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Plan Settings Panel ───────────────────────────────────────
+const PLAN_META = {
+  free:     { icon: '🆓', color: '#6b7280', bg: '#f3f4f6' },
+  basic:    { icon: '⭐', color: '#2D5016', bg: '#f0fdf4' },
+  standard: { icon: '🌟', color: '#1d4ed8', bg: '#eff6ff' },
+  premium:  { icon: '👑', color: '#92400e', bg: '#fffbeb' },
+}
+
+function PlanSettingsPanel() {
+  const [plans, setPlans] = useState(null)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    apiClient.get('/settings/plans').then(res => setPlans(res.data)).catch(() => {})
+  }, [])
+
+  const handleChange = (key, field, value) => {
+    setPlans(prev => ({ ...prev, [key]: { ...prev[key], [field]: value } }))
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const payload = {}
+      Object.entries(plans).forEach(([k, v]) => {
+        payload[k] = { ...v, trees: parseInt(v.trees) || 1, members_per_tree: parseInt(v.members_per_tree) || 0, price: parseInt(v.price) || 0 }
+      })
+      const res = await apiClient.put('/settings/plans', payload)
+      setPlans(res.data)
+      toast.success('Đã lưu cài đặt gói dịch vụ')
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Lưu thất bại')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const iS = { padding: '7px 10px', border: '1px solid #C4A882', borderRadius: 6, background: '#FDFAF5', color: '#3C2415', fontFamily: 'Lora,Georgia,serif', fontSize: '0.85rem', width: '100%', boxSizing: 'border-box' }
+
+  if (!plans) return <div style={{ padding: 24, color: '#7a5c3e' }}>Đang tải...</div>
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 20 }}>
+        {Object.entries(plans).map(([key, cfg]) => {
+          const meta = PLAN_META[key] || { icon: '📦', color: '#555', bg: '#f5f5f5' }
+          return (
+            <div key={key} style={{ background: meta.bg, border: `1px solid ${meta.color}30`, borderRadius: 10, padding: '16px 16px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: '1.4rem' }}>{meta.icon}</span>
+                <input
+                  value={cfg.label}
+                  onChange={e => handleChange(key, 'label', e.target.value)}
+                  style={{ ...iS, fontWeight: 700, fontSize: '0.95rem', color: meta.color, background: 'transparent', border: '1px solid transparent', borderRadius: 4, padding: '4px 6px' }}
+                  onFocus={e => e.target.style.borderColor = meta.color}
+                  onBlur={e => e.target.style.borderColor = 'transparent'}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.72rem', color: '#7a5c3e', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em' }}>Giá (VND/năm)</label>
+                <input type="number" min="0" step="10000"
+                  value={cfg.price}
+                  onChange={e => handleChange(key, 'price', e.target.value)}
+                  style={iS}
+                  disabled={key === 'free'}
+                />
+                {key !== 'free' && <div style={{ fontSize: '0.7rem', color: meta.color, marginTop: 2 }}>
+                  = {parseInt(cfg.price || 0).toLocaleString('vi-VN')} ₫
+                </div>}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: '#7a5c3e', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em' }}>Số cây</label>
+                  <input type="number" min="1"
+                    value={cfg.trees}
+                    onChange={e => handleChange(key, 'trees', e.target.value)}
+                    style={iS}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: '#7a5c3e', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em' }}>TV/cây</label>
+                  <input type="number" min="1"
+                    value={cfg.members_per_tree}
+                    onChange={e => handleChange(key, 'members_per_tree', e.target.value)}
+                    style={iS}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.72rem', color: '#7a5c3e', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em' }}>Mô tả ngắn</label>
+                <input
+                  value={cfg.description || ''}
+                  onChange={e => handleChange(key, 'description', e.target.value)}
+                  placeholder="VD: Dành cho cá nhân..."
+                  style={iS}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <button onClick={handleSave} disabled={saving}
+        style={{ padding: '10px 28px', background: '#2D5016', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontFamily: 'Lora,Georgia,serif', fontWeight: 700, fontSize: '0.9rem', opacity: saving ? 0.7 : 1 }}>
+        {saving ? 'Đang lưu...' : '💾 Lưu cài đặt gói'}
+      </button>
+    </div>
+  )
+}
+
 // ── Main AdminPanel ───────────────────────────────────────────
 export default function AdminPanel() {
   const [stats, setStats] = useState(null)
@@ -293,6 +525,7 @@ export default function AdminPanel() {
             { id: 'users', label: isMobile ? `👤 Users (${users.length})` : `👤 Người Dùng (${users.length})` },
             { id: 'trees', label: isMobile ? `🌳 Cây (${trees.length})` : `🌳 Gia Phả (${trees.length})` },
             { id: 'print', label: isMobile ? `🖨 In (${printOrders.length})` : `🖨 Đơn In (${printOrders.length})` },
+            { id: 'settings', label: isMobile ? `⚙ CĐ` : `⚙ Cài đặt` },
           ].map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: isMobile ? '8px 10px' : '10px 20px', background: tab === t.id ? '#8B4513' : 'transparent', color: tab === t.id ? '#F5F0E8' : '#7a5c3e', border: 'none', borderRadius: '6px 6px 0 0', cursor: 'pointer', fontFamily: 'Lora,Georgia,serif', fontWeight: 600, fontSize: isMobile ? '0.78rem' : '0.9rem', transition: 'all 0.2s', flex: isMobile ? 1 : 'none' }}>
               {t.label}
@@ -496,6 +729,24 @@ export default function AdminPanel() {
               </tbody>
             </table>
             {printOrders.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: '#7a5c3e' }}>Chưa có đơn in nào</div>}
+          </div>
+        )}
+
+        {/* Settings tab */}
+        {tab === 'settings' && (
+          <div className="vintage-card" style={{ borderRadius: '0 8px 8px 8px', padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 36 }}>
+            <div>
+              <h3 style={{ fontFamily: 'Playfair Display,Georgia,serif', color: '#3C2415', fontSize: '1.1rem', margin: '0 0 20px', paddingBottom: 10, borderBottom: '1px solid #E8E0D0' }}>
+                🏦 Thông tin thanh toán / Ngân hàng
+              </h3>
+              <BankSettingsPanel />
+            </div>
+            <div>
+              <h3 style={{ fontFamily: 'Playfair Display,Georgia,serif', color: '#3C2415', fontSize: '1.1rem', margin: '0 0 20px', paddingBottom: 10, borderBottom: '1px solid #E8E0D0' }}>
+                📦 Cài đặt gói dịch vụ
+              </h3>
+              <PlanSettingsPanel />
+            </div>
           </div>
         )}
       </div>
