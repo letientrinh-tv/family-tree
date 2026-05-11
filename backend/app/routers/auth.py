@@ -140,10 +140,10 @@ async def google_login(data: SocialLoginData, db: Session = Depends(get_db)):
 # ── Facebook Login ────────────────────────────────────────────
 @router.post("/facebook", response_model=schemas.Token)
 async def facebook_login(data: SocialLoginData, db: Session = Depends(get_db)):
-    app_id = os.getenv("FACEBOOK_APP_ID", "")
+    app_id = os.getenv("VITE_FACEBOOK_APP_ID", "")
     app_secret = os.getenv("FACEBOOK_APP_SECRET", "")
     if not app_id or not app_secret:
-        raise HTTPException(status_code=400, detail="Facebook OAuth chưa được cấu hình (thiếu FACEBOOK_APP_ID/SECRET)")
+        raise HTTPException(status_code=400, detail="Facebook OAuth chưa được cấu hình (thiếu VITE_FACEBOOK_APP_ID/SECRET)")
     try:
         import httpx
         app_token = f"{app_id}|{app_secret}"

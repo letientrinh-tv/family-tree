@@ -3,10 +3,10 @@ import toast from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
-const FACEBOOK_APP_ID = import.meta.env.VITE_FACEBOOK_APP_ID || ''
-const hasGoogle = !!GOOGLE_CLIENT_ID
-const hasFacebook = !!FACEBOOK_APP_ID
+const VITE_GOOGLE_CLIENT_ID = import.meta.env.VITE_VITE_GOOGLE_CLIENT_ID || ''
+const VITE_FACEBOOK_APP_ID = import.meta.env.VITE_VITE_FACEBOOK_APP_ID || ''
+const hasGoogle = !!VITE_GOOGLE_CLIENT_ID
+const hasFacebook = !!VITE_FACEBOOK_APP_ID
 
 function loadScript(src, id) {
   return new Promise((resolve) => {
@@ -29,11 +29,11 @@ export default function SocialLoginButtons() {
 
   // Load Google Identity Services
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) return
+    if (!VITE_GOOGLE_CLIENT_ID) return
     loadScript('https://accounts.google.com/gsi/client', 'google-gsi').then(() => {
       if (!window.google) return
       tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
+        client_id: VITE_GOOGLE_CLIENT_ID,
         scope: 'email profile openid',
         callback: () => {},
       })
@@ -42,11 +42,11 @@ export default function SocialLoginButtons() {
 
   // Load Facebook SDK
   useEffect(() => {
-    if (!FACEBOOK_APP_ID) return
+    if (!VITE_FACEBOOK_APP_ID) return
     // Define fbAsyncInit before loading the script so SDK calls it on load
     if (!window.fbAsyncInit) {
       window.fbAsyncInit = () => {
-        window.FB.init({ appId: FACEBOOK_APP_ID, cookie: true, xfbml: false, version: 'v19.0' })
+        window.FB.init({ appId: VITE_FACEBOOK_APP_ID, cookie: true, xfbml: false, version: 'v19.0' })
       }
     }
     // Defer script injection outside React's render cycle
@@ -70,7 +70,7 @@ export default function SocialLoginButtons() {
   }
 
   const handleGoogle = () => {
-    if (!GOOGLE_CLIENT_ID) { toast.error('Google OAuth chưa được cấu hình'); return }
+    if (!VITE_GOOGLE_CLIENT_ID) { toast.error('Google OAuth chưa được cấu hình'); return }
     if (!tokenClientRef.current) { toast.error('Google SDK đang tải, thử lại'); return }
     setGoogleLoading(true)
     tokenClientRef.current.callback = (resp) => {
@@ -85,7 +85,7 @@ export default function SocialLoginButtons() {
   }
 
   const handleFacebook = () => {
-    if (!FACEBOOK_APP_ID) { toast.error('Facebook OAuth chưa được cấu hình'); return }
+    if (!VITE_FACEBOOK_APP_ID) { toast.error('Facebook OAuth chưa được cấu hình'); return }
     if (!window.FB) { toast.error('Facebook SDK đang tải, thử lại'); return }
     setFbLoading(true)
     window.FB.login(
