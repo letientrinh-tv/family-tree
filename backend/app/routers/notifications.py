@@ -116,17 +116,17 @@ def generate_facebook_link_token(
     Frontend hiển thị hướng dẫn: nhắn tin "LINK:<token>" vào Page.
     Webhook nhận tin → lưu PSID vào notification_settings.
     """
-    page_id = os.getenv("FACEBOOK_PAGE_ID", "")
-    if not page_id:
-        raise HTTPException(status_code=503, detail="FACEBOOK_PAGE_ID chưa được cấu hình")
+    page_name = os.getenv("FACEBOOK_PAGE_NAME", "")
+    if not page_name:
+        raise HTTPException(status_code=503, detail="FACEBOOK_PAGE_NAME chưa được cấu hình trong .env")
     setting = _get_or_create_setting(current_user, db)
     token = secrets.token_urlsafe(12)
     setting.facebook_link_token = token
     db.commit()
     return {
         "token": token,
-        "instruction": f"Nhắn tin sau vào Messenger Page của ứng dụng: LINK:{token}",
-        "messenger_url": f"https://m.me/{page_id}?ref=LINK:{token}",
+        "instruction": f"Nhắn tin 'LINK:{token}' vào Messenger Page của ứng dụng",
+        "messenger_url": f"https://m.me/{page_name}",
     }
 
 
