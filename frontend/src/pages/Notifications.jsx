@@ -364,10 +364,30 @@ export default function Notifications() {
                           <div style={{
                             background: '#fffbeb', border: '1px solid #fcd34d',
                             borderRadius: 6, padding: '10px 12px', marginBottom: 10,
-                            fontSize: '0.82rem', color: '#92400e', lineHeight: 1.6,
+                            fontSize: '0.82rem', color: '#92400e', lineHeight: 1.8,
                           }}>
-                            <strong>Bước 1:</strong> Click nút bên dưới để mở Messenger<br />
-                            <strong>Bước 2:</strong> Gửi tin nhắn bất kỳ vào Page<br />
+                            <strong>Bước 1:</strong> Mở Messenger bên dưới<br />
+                            <strong>Bước 2:</strong> Gửi đúng đoạn mã này:
+                            <div
+                              onClick={() => { navigator.clipboard.writeText(`LINK:${fbLinkInfo.token}`); }}
+                              title="Click để copy"
+                              style={{
+                                margin: '6px 0 2px',
+                                padding: '7px 10px',
+                                background: '#fff',
+                                border: '1px dashed #f59e0b',
+                                borderRadius: 5,
+                                fontFamily: 'monospace',
+                                fontWeight: 700,
+                                fontSize: '0.95rem',
+                                letterSpacing: '0.05em',
+                                color: '#92400e',
+                                cursor: 'pointer',
+                                userSelect: 'all',
+                              }}
+                            >
+                              LINK:{fbLinkInfo.token} <span style={{ fontSize: '0.7rem', fontWeight: 400 }}>📋 click để copy</span>
+                            </div>
                             <strong>Bước 3:</strong> Nhấn "Kiểm tra kết nối"
                           </div>
                           <a

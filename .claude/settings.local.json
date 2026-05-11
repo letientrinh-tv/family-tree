@@ -6,7 +6,9 @@
       "Bash(docker-compose ps *)",
       "Bash(Test-Path \"d:\\\\laragon\\\\www\\\\family-tree\\\\backend\\\\.env\")",
       "Bash(docker-compose restart *)",
-      "Bash(docker exec family-tree-backend-1 python3 -c ' *)"
+      "Bash(docker exec family-tree-backend-1 python3 -c ' *)",
+      "Bash(git add *)",
+      "Bash(docker exec *)"
     ]
   }
 }

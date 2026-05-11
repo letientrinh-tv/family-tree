@@ -1,6 +1,7 @@
 import os
 import hmac
 import hashlib
+import httpx
 from fastapi import APIRouter, Request, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -57,11 +58,25 @@ async def receive_webhook(request: Request, db: Session = Depends(get_db)):
             if not psid:
                 continue
 
+            # Trích token từ nhiều nguồn:
+            # 1. Tin nhắn text: "LINK:xxxx"
+            # 2. Postback payload (nút bấm)
+            # 3. Referral ref (m.me?ref=LINK:xxxx)
+            token = None
             text = (event.get("message", {}).get("text") or "").strip()
-
-            # Tìm user qua link_token (dạng "LINK:<token>") do frontend gửi
             if text.upper().startswith("LINK:"):
                 token = text[5:].strip()
+
+            if not token:
+                ref = (
+                    event.get("postback", {}).get("payload") or
+                    event.get("postback", {}).get("referral", {}).get("ref") or
+                    event.get("referral", {}).get("ref") or ""
+                ).strip()
+                if ref.upper().startswith("LINK:"):
+                    token = ref[5:].strip()
+
+            if token:
                 setting = db.query(models.NotificationSetting).filter(
                     models.NotificationSetting.facebook_link_token == token
                 ).first()
@@ -70,5 +85,32 @@ async def receive_webhook(request: Request, db: Session = Depends(get_db)):
                     setting.facebook_link_token = None
                     setting.facebook_enabled = True
                     db.commit()
+                    _send_confirmation(psid)
+                else:
+                    _send_message(psid, "❌ Mã liên kết không hợp lệ hoặc đã hết hạn. Vui lòng tạo mã mới trên web.")
 
     return {"status": "ok"}
+
+
+def _send_message(psid: str, text: str):
+    """Gửi tin nhắn phản hồi về cho user qua Messenger."""
+    token = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN", "")
+    if not token:
+        return
+    try:
+        httpx.post(
+            "https://graph.facebook.com/v21.0/me/messages",
+            params={"access_token": token},
+            json={"recipient": {"id": psid}, "message": {"text": text}},
+            timeout=5,
+        )
+    except Exception:
+        pass
+
+
+def _send_confirmation(psid: str):
+    _send_message(
+        psid,
+        "✅ Kết nối thành công! Từ nay bạn sẽ nhận thông báo sinh nhật & ngày giỗ qua Messenger này. "
+        "Cảm ơn đã sử dụng Gia Phả Việt 🌳"
+    )
