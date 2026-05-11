@@ -60,8 +60,12 @@ def _migrate_notification_columns():
 
 @app.on_event("startup")
 def startup_event():
-    models.Base.metadata.create_all(bind=engine)
-    _migrate_notification_columns()
+    try:
+        models.Base.metadata.create_all(bind=engine)
+        _migrate_notification_columns()
+    except Exception as e:
+        print(f"DB init warning (DATABASE_URL configured?): {e}")
+        return
 
     db2: Session = SessionLocal()
     try:
