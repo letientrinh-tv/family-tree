@@ -1,20 +1,14 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from sqlalchemy import text
 from .database import engine, SessionLocal
 from . import models
 from .auth import get_password_hash
-from .routers import auth, trees, persons, admin, notifications, billing, print_orders, settings
+from .routers import auth, trees, persons, admin, notifications, billing, print_orders, settings, cron
 from .plans import PLAN_LIMITS
-from .scheduler import start_scheduler, stop_scheduler
-
-# Create upload directory
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(
     title="Gia Pha Viet API",
@@ -22,17 +16,14 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS
+# CORS – allow all origins (frontend is same-origin on Vercel; wildcard covers dev)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://frontend:80"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Static files for uploads
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # Include routers
 app.include_router(auth.router)
@@ -43,6 +34,7 @@ app.include_router(notifications.router)
 app.include_router(billing.router)
 app.include_router(print_orders.router)
 app.include_router(settings.router)
+app.include_router(cron.router)
 
 
 def _migrate_notification_columns():
@@ -66,21 +58,11 @@ def _migrate_notification_columns():
         db.close()
 
 
-@app.on_event("shutdown")
-def shutdown_event():
-    stop_scheduler()
-
-
 @app.on_event("startup")
 def startup_event():
-    start_scheduler()
-    # Create all tables
     models.Base.metadata.create_all(bind=engine)
-
-    # Migrate: add new notification columns if missing
     _migrate_notification_columns()
 
-    # Seed plan_settings with defaults if empty
     db2: Session = SessionLocal()
     try:
         for key, cfg in PLAN_LIMITS.items():
@@ -100,7 +82,6 @@ def startup_event():
     finally:
         db2.close()
 
-    # Create default admin user if not exists
     db: Session = SessionLocal()
     try:
         existing_admin = db.query(models.User).filter(models.User.username == "trinhlt").first()

@@ -1,5 +1,3 @@
-import os
-import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
@@ -7,11 +5,9 @@ from ..database import get_db
 from ..models import BankSetting, PlanSetting
 from ..plans import PLAN_LIMITS
 from ..auth import get_current_user, get_current_admin
+from ..cloudinary_upload import upload_image, delete_image_by_url
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
-
-UPLOAD_DIR = "uploads/qr"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def _get_or_create(db: Session) -> BankSetting:
@@ -67,14 +63,11 @@ async def upload_qr(
 ):
     if not file.content_type.startswith("image/"):
         raise HTTPException(400, "Chỉ chấp nhận file ảnh")
-    ext = file.filename.rsplit(".", 1)[-1] if "." in file.filename else "png"
-    filename = f"qr_{uuid.uuid4().hex}.{ext}"
-    path = os.path.join(UPLOAD_DIR, filename)
-    content = await file.read()
-    with open(path, "wb") as f:
-        f.write(content)
-    url = f"/uploads/qr/{filename}"
     s = _get_or_create(db)
+    if s.qr_code_url:
+        delete_image_by_url(s.qr_code_url)
+    content = await file.read()
+    url = upload_image(content, folder="family-tree/qr")
     s.qr_code_url = url
     db.commit()
     return {"qr_code_url": url}

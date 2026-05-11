@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /Users/letrinh/family-tree/api)"
+    ],
+    "additionalDirectories": [
+      "/Users/letrinh/family-tree"
+    ]
+  }
+}

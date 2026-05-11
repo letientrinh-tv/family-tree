@@ -1,5 +1,3 @@
-import os
-import uuid
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
@@ -8,11 +6,9 @@ from ..database import get_db
 from .. import models, schemas
 from ..auth import get_current_user
 from ..plans import get_plan
+from ..cloudinary_upload import upload_image, delete_image_by_url
 
 router = APIRouter(tags=["persons"])
-
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def get_tree_and_check_access(tree_id: int, current_user: models.User, db: Session) -> models.FamilyTree:
@@ -113,27 +109,15 @@ async def upload_photo(
 ):
     person = get_person_and_check_access(person_id, current_user, db)
 
-    # Validate file type
     if file.content_type not in ["image/jpeg", "image/png", "image/gif", "image/webp"]:
         raise HTTPException(status_code=400, detail="Only image files are allowed")
 
-    # Generate unique filename
-    ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
-    filename = f"{uuid.uuid4()}.{ext}"
-    filepath = os.path.join(UPLOAD_DIR, filename)
-
-    # Save file
     contents = await file.read()
-    with open(filepath, "wb") as f:
-        f.write(contents)
 
-    # Delete old photo if exists
     if person.photo_url:
-        old_path = person.photo_url.lstrip("/")
-        if os.path.exists(old_path):
-            os.remove(old_path)
+        delete_image_by_url(person.photo_url)
 
-    person.photo_url = f"/uploads/{filename}"
+    person.photo_url = upload_image(contents, folder="family-tree/persons")
     db.commit()
     db.refresh(person)
     return person
