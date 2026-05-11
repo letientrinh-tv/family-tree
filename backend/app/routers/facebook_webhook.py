@@ -48,7 +48,8 @@ async def receive_webhook(request: Request, db: Session = Depends(get_db)):
     if not _verify_signature(body, sig):
         raise HTTPException(status_code=403, detail="Chữ ký không hợp lệ")
 
-    data = await request.json()
+    import json
+    data = json.loads(body)
     if data.get("object") != "page":
         return {"status": "ignored"}
 
