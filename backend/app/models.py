@@ -102,7 +102,8 @@ class NotificationSetting(Base):
     sms_enabled = Column(Boolean, default=False)   # deprecated, giữ để tương thích
     zalo_enabled = Column(Boolean, default=False)
     facebook_enabled = Column(Boolean, default=False)
-    facebook_psid = Column(String, nullable=True)  # Facebook Page-Scoped ID
+    facebook_psid = Column(String, nullable=True)       # Facebook Page-Scoped ID
+    facebook_link_token = Column(String, nullable=True) # token tạm để liên kết PSID
     days_before = Column(Integer, default=7)
     active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

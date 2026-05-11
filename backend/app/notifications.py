@@ -110,11 +110,16 @@ def send_facebook(psid: str, message: str) -> tuple:
         return False, "Facebook Page chưa được cấu hình (thiếu FACEBOOK_PAGE_ACCESS_TOKEN)"
     try:
         resp = httpx.post(
-            "https://graph.facebook.com/v19.0/me/messages",
+            "https://graph.facebook.com/v21.0/me/messages",
             params={"access_token": page_token},
             json={
                 "recipient": {"id": psid},
                 "message": {"text": message},
+                # MESSAGE_TAG + ACCOUNT_UPDATE: cho phép gửi ngoài cửa sổ 24h
+                # mà không bị Facebook coi là spam — phù hợp cho nhắc nhở
+                # sự kiện gia đình (tính năng của tài khoản)
+                "messaging_type": "MESSAGE_TAG",
+                "tag": "ACCOUNT_UPDATE",
             },
             timeout=10,
         )
@@ -266,8 +271,18 @@ def run_daily_notifications(db: Session):
         if not events:
             continue
 
+        today_str = str(date.today())
+
+        def _already_sent(channel: str) -> bool:
+            return db.query(models.NotificationLog).filter(
+                models.NotificationLog.user_id == user.id,
+                models.NotificationLog.channel == channel,
+                models.NotificationLog.event_date == today_str,
+                models.NotificationLog.success == True,
+            ).first() is not None
+
         # Email
-        if setting.email_enabled:
+        if setting.email_enabled and not _already_sent("email"):
             email_to = setting.notify_email or user.email
             subject = f"Gia Phả Việt – {len(events)} sự kiện sắp tới"
             body = _build_email_html(user.username, events)
@@ -277,7 +292,7 @@ def run_daily_notifications(db: Session):
                     user_id=user.id,
                     person_id=e["person_id"],
                     event_type=e["event_type"],
-                    event_date=e["event_date"],
+                    event_date=today_str,
                     channel="email",
                     recipient=email_to,
                     success=ok,
@@ -285,29 +300,29 @@ def run_daily_notifications(db: Session):
                 ))
 
         # Zalo
-        if setting.zalo_enabled and setting.notify_phone:
+        if setting.zalo_enabled and setting.notify_phone and not _already_sent("zalo"):
             msg = _build_short_message(user.username, events)
             ok, err = send_zalo(setting.notify_phone, msg)
             db.add(models.NotificationLog(
                 user_id=user.id,
                 person_id=None,
                 event_type="summary",
-                event_date=str(date.today()),
+                event_date=today_str,
                 channel="zalo",
                 recipient=setting.notify_phone,
                 success=ok,
                 error_message=None if ok else err,
             ))
 
-        # Facebook Messenger
-        if setting.facebook_enabled and setting.facebook_psid:
+        # Facebook Messenger – max 1 tin/ngày/user, dùng MESSAGE_TAG tránh spam
+        if setting.facebook_enabled and setting.facebook_psid and not _already_sent("facebook"):
             msg = _build_short_message(user.username, events)
             ok, err = send_facebook(setting.facebook_psid, msg)
             db.add(models.NotificationLog(
                 user_id=user.id,
                 person_id=None,
                 event_type="summary",
-                event_date=str(date.today()),
+                event_date=today_str,
                 channel="facebook",
                 recipient=setting.facebook_psid,
                 success=ok,
