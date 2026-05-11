@@ -1,7 +1,12 @@
 {
   "permissions": {
+    "deny": [
+      "Bash(git commit *)"
+    ],
     "allow": [
-      "Bash(mkdir -p /Users/letrinh/family-tree/api)"
+      "Bash(mkdir -p /Users/letrinh/family-tree/api)",
+      "Skill(update-config)",
+      "Skill(update-config:*)"
     ],
     "additionalDirectories": [
       "/Users/letrinh/family-tree"

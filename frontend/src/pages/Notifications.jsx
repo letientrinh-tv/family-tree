@@ -99,6 +99,9 @@ export default function Notifications() {
   const [loadingUpcoming, setLoadingUpcoming] = useState(true)
   const [loadingLogs, setLoadingLogs] = useState(true)
   const [activeTab, setActiveTab] = useState('upcoming')
+  const [fbLinking, setFbLinking] = useState(false)
+  const [fbLinkInfo, setFbLinkInfo] = useState(null)   // { token, messenger_url }
+  const [fbChecking, setFbChecking] = useState(false)
 
   const fetchAll = useCallback(async () => {
     try {
@@ -130,7 +133,6 @@ export default function Notifications() {
         email_enabled: form.email_enabled,
         zalo_enabled: form.zalo_enabled,
         facebook_enabled: form.facebook_enabled,
-        facebook_psid: form.facebook_psid || null,
         days_before: form.days_before,
         active: form.active,
       })
@@ -141,6 +143,47 @@ export default function Notifications() {
       toast.error(err.response?.data?.detail || 'Lưu thất bại')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleFacebookLink = async () => {
+    setFbLinking(true)
+    try {
+      const res = await apiClient.post('/notifications/facebook/link-token')
+      setFbLinkInfo(res.data)
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Không thể tạo link kết nối')
+    } finally {
+      setFbLinking(false)
+    }
+  }
+
+  const handleFacebookCheckLinked = async () => {
+    setFbChecking(true)
+    try {
+      const res = await apiClient.get('/notifications/facebook/status')
+      if (res.data.linked) {
+        toast.success('Kết nối Facebook thành công!')
+        setFbLinkInfo(null)
+        fetchAll()
+      } else {
+        toast.error('Chưa nhận được tin nhắn. Hãy nhắn tin vào Page trước.')
+      }
+    } catch {
+      toast.error('Không thể kiểm tra trạng thái')
+    } finally {
+      setFbChecking(false)
+    }
+  }
+
+  const handleFacebookUnlink = async () => {
+    try {
+      await apiClient.delete('/notifications/facebook/unlink')
+      toast.success('Đã huỷ kết nối Facebook')
+      setFbLinkInfo(null)
+      fetchAll()
+    } catch {
+      toast.error('Huỷ kết nối thất bại')
     }
   }
 
@@ -167,7 +210,6 @@ export default function Notifications() {
     form.email_enabled !== settings.email_enabled ||
     form.zalo_enabled !== settings.zalo_enabled ||
     form.facebook_enabled !== settings.facebook_enabled ||
-    form.facebook_psid !== settings.facebook_psid ||
     form.days_before !== settings.days_before ||
     form.active !== settings.active
   )
@@ -282,15 +324,101 @@ export default function Notifications() {
                     <div style={{ background: '#EEF2FF', borderRadius: 8, padding: 16, border: '1px solid #93a8f0', opacity: form.active ? 1 : 0.6 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                         <span style={{ fontWeight: 700, color: '#1877F2', fontSize: '0.92rem' }}>📘 Facebook</span>
-                        <Toggle checked={form.facebook_enabled || false} onChange={v => setForm(f => ({ ...f, facebook_enabled: v }))} disabled={!form.active} />
+                        <Toggle
+                          checked={form.facebook_enabled || false}
+                          onChange={v => setForm(f => ({ ...f, facebook_enabled: v }))}
+                          disabled={!form.active}
+                        />
                       </div>
-                      <label style={labelStyle}>Facebook ID (PSID)</label>
-                      <input type="text" value={form.facebook_psid || ''} onChange={e => setForm(f => ({ ...f, facebook_psid: e.target.value }))}
-                        placeholder="123456789012345" disabled={!form.active || !form.facebook_enabled}
-                        style={{ ...inputStyle, opacity: (!form.active || !form.facebook_enabled) ? 0.5 : 1 }} />
-                      <div style={{ fontSize: '0.72rem', color: '#4a60a8', marginTop: 4 }}>
-                        Nhắn tin cho trang Facebook để lấy ID
-                      </div>
+
+                      {/* Đã kết nối */}
+                      {settings?.facebook_psid ? (
+                        <div>
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            background: '#dcfce7', border: '1px solid #86efac',
+                            borderRadius: 6, padding: '8px 10px', marginBottom: 8,
+                          }}>
+                            <span style={{ fontSize: '1rem' }}>✅</span>
+                            <span style={{ fontSize: '0.82rem', color: '#166534', fontWeight: 600 }}>
+                              Đã kết nối Messenger
+                            </span>
+                          </div>
+                          <button
+                            onClick={handleFacebookUnlink}
+                            disabled={!form.active}
+                            style={{
+                              width: '100%', padding: '7px 0',
+                              background: 'white', border: '1px solid #fca5a5',
+                              borderRadius: 6, color: '#b91c1c',
+                              fontSize: '0.82rem', fontWeight: 600,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Huỷ kết nối
+                          </button>
+                        </div>
+                      ) : fbLinkInfo ? (
+                        /* Đang chờ user nhắn tin */
+                        <div>
+                          <div style={{
+                            background: '#fffbeb', border: '1px solid #fcd34d',
+                            borderRadius: 6, padding: '10px 12px', marginBottom: 10,
+                            fontSize: '0.82rem', color: '#92400e', lineHeight: 1.6,
+                          }}>
+                            <strong>Bước 1:</strong> Click nút bên dưới để mở Messenger<br />
+                            <strong>Bước 2:</strong> Gửi tin nhắn bất kỳ vào Page<br />
+                            <strong>Bước 3:</strong> Nhấn "Kiểm tra kết nối"
+                          </div>
+                          <a
+                            href={fbLinkInfo.messenger_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              display: 'block', textAlign: 'center',
+                              padding: '9px 0', marginBottom: 8,
+                              background: '#1877F2', color: 'white',
+                              borderRadius: 6, fontSize: '0.88rem',
+                              fontWeight: 700, textDecoration: 'none',
+                            }}
+                          >
+                            💬 Mở Messenger nhắn tin
+                          </a>
+                          <button
+                            onClick={handleFacebookCheckLinked}
+                            disabled={fbChecking}
+                            style={{
+                              width: '100%', padding: '8px 0',
+                              background: 'white', border: '1px solid #93a8f0',
+                              borderRadius: 6, color: '#1877F2',
+                              fontSize: '0.82rem', fontWeight: 600,
+                              cursor: fbChecking ? 'wait' : 'pointer',
+                            }}
+                          >
+                            {fbChecking ? 'Đang kiểm tra...' : '🔄 Kiểm tra kết nối'}
+                          </button>
+                        </div>
+                      ) : (
+                        /* Chưa kết nối */
+                        <div>
+                          <div style={{ fontSize: '0.78rem', color: '#4a60a8', marginBottom: 10, lineHeight: 1.5 }}>
+                            Kết nối Messenger để nhận thông báo sinh nhật & ngày giỗ trực tiếp qua Facebook.
+                          </div>
+                          <button
+                            onClick={handleFacebookLink}
+                            disabled={!form.active || fbLinking}
+                            style={{
+                              width: '100%', padding: '9px 0',
+                              background: form.active ? '#1877F2' : '#93a8f0',
+                              border: 'none', borderRadius: 6,
+                              color: 'white', fontSize: '0.88rem',
+                              fontWeight: 700, cursor: (!form.active || fbLinking) ? 'not-allowed' : 'pointer',
+                            }}
+                          >
+                            {fbLinking ? 'Đang tạo link...' : '🔗 Kết nối Messenger'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
 

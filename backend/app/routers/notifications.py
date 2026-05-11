@@ -1,3 +1,5 @@
+import os
+import secrets
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -102,6 +104,57 @@ def send_test_notification(
     if not results:
         raise HTTPException(status_code=400, detail="Chưa bật kênh thông báo nào.")
     return {"results": results}
+
+
+@router.post("/facebook/link-token")
+def generate_facebook_link_token(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Sinh token tạm để user liên kết PSID.
+
+    Frontend hiển thị hướng dẫn: nhắn tin "LINK:<token>" vào Page.
+    Webhook nhận tin → lưu PSID vào notification_settings.
+    """
+    page_name = os.getenv("FACEBOOK_PAGE_NAME", "")
+    if not page_name:
+        raise HTTPException(status_code=503, detail="FACEBOOK_PAGE_NAME chưa được cấu hình trong .env")
+    setting = _get_or_create_setting(current_user, db)
+    token = secrets.token_urlsafe(12)
+    setting.facebook_link_token = token
+    db.commit()
+    return {
+        "token": token,
+        "instruction": f"Nhắn tin 'LINK:{token}' vào Messenger Page của ứng dụng",
+        "messenger_url": f"https://m.me/{page_name}",
+    }
+
+
+@router.get("/facebook/status")
+def facebook_link_status(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Kiểm tra PSID đã được liên kết chưa."""
+    setting = _get_or_create_setting(current_user, db)
+    return {
+        "linked": bool(setting.facebook_psid),
+        "enabled": setting.facebook_enabled,
+    }
+
+
+@router.delete("/facebook/unlink")
+def unlink_facebook(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Huỷ liên kết Facebook – user có thể opt-out bất cứ lúc nào."""
+    setting = _get_or_create_setting(current_user, db)
+    setting.facebook_psid = None
+    setting.facebook_link_token = None
+    setting.facebook_enabled = False
+    db.commit()
+    return {"status": "unlinked"}
 
 
 @router.get("/logs", response_model=List[schemas.NotificationLogResponse])
