@@ -934,12 +934,43 @@ function TreeEditorInner() {
     [buildGraph, handleAddRelative, setNodes, setEdges],
   );
 
-  // After nodes are rendered, correct junction positions using actual measured dimensions
+  // After nodes are rendered, correct junction positions and center-align spouse nodes
   const realignJunctions = useCallback(() => {
     const allNodes = getNodes();
     let hasChange = false;
     const updated = allNodes.map((node) => {
-      if (!node.id.startsWith("j_")) return node;
+      if (!node.id.startsWith("j_")) {
+        // Person node: center-align vertically with spouse
+        if (!node.height) return node;
+        const personId = parseInt(node.id);
+        if (isNaN(personId)) return node;
+        const spouseRel = relationships.find(
+          (r) =>
+            r.relationship_type === "spouse" &&
+            (r.person1_id === personId || r.person2_id === personId),
+        );
+        if (!spouseRel) return node;
+        const spouseId =
+          spouseRel.person1_id === personId
+            ? spouseRel.person2_id
+            : spouseRel.person1_id;
+        const spouseNode = allNodes.find((n) => n.id === String(spouseId));
+        if (!spouseNode || !spouseNode.height) return node;
+        const nodeH = node.height;
+        const spouseH = spouseNode.height;
+        const nodeCenterY = node.position.y + nodeH / 2;
+        const spouseCenterY = spouseNode.position.y + spouseH / 2;
+        if (Math.abs(nodeCenterY - spouseCenterY) <= 1) return node;
+        const targetCenterY = (nodeCenterY + spouseCenterY) / 2;
+        const targetY = targetCenterY - nodeH / 2;
+        if (Math.abs(node.position.y - targetY) > 0.5) {
+          hasChange = true;
+          return { ...node, position: { x: node.position.x, y: targetY } };
+        }
+        return node;
+      }
+
+      // Junction node: place at midpoint between spouse centers
       const relId = node.id.replace("j_", "");
       const rel = relationships.find(
         (r) => String(r.id) === relId && r.relationship_type === "spouse",
@@ -953,7 +984,9 @@ function TreeEditorInner() {
         p1Node.position.x <= p2Node.position.x ? p2Node : p1Node;
       const jX =
         (leftNode.position.x + leftNode.width + rightNode.position.x) / 2 - 1;
-      const jY = leftNode.position.y + leftNode.height / 2 - 1;
+      const jY =
+        (leftNode.position.y + (leftNode.height || NODE_H) / 2 +
+          rightNode.position.y + (rightNode.height || NODE_H) / 2) / 2 - 1;
       if (
         Math.abs(node.position.x - jX) > 0.5 ||
         Math.abs(node.position.y - jY) > 0.5
@@ -971,9 +1004,9 @@ function TreeEditorInner() {
       (r) => r.relationship_type === "spouse",
     ).length;
     if (spouseCount === 0) return;
-    const id = setTimeout(realignJunctions, 50);
+    const id = setTimeout(realignJunctions, 80);
     return () => clearTimeout(id);
-  }, [relationships, realignJunctions]);
+  }, [persons, relationships, realignJunctions]);
 
   // Fetch tree data
   useEffect(() => {
@@ -1499,11 +1532,7 @@ function TreeEditorInner() {
             }}
           />
           <MiniMap
-            nodeColor={(node) => {
-              if (node.data?.gender === "male") return "#4A90D9";
-              if (node.data?.gender === "female") return "#D946A8";
-              return "#8B4513";
-            }}
+            nodeColor={() => "#C4A882"}
             style={{ border: "1px solid #C4A882", background: "#FDFAF5" }}
           />
 
@@ -1590,14 +1619,12 @@ function TreeEditorInner() {
                   {[
                     {
                       label: "+ Thành viên",
-                      bg: "#3A5F8A",
                       onClick: () =>
                         setAddModal({ mode: "standalone", relativeOf: null }),
                       title: "Thêm người mới",
                     },
                     {
-                      label: "📋 Danh sách",
-                      bg: "#5C4033",
+                      label: "📋 DS thành viên",
                       onClick: () => setShowMemberList(true),
                       title: "Xem toàn bộ thành viên",
                     },
@@ -1607,7 +1634,7 @@ function TreeEditorInner() {
                       onClick={b.onClick}
                       title={b.title}
                       style={{
-                        background: b.bg,
+                        background: "#8B4513",
                         color: "#F5F0E8",
                         border: "none",
                         borderRadius: "5px",
@@ -1638,7 +1665,7 @@ function TreeEditorInner() {
                     onClick={handleAutoLayout}
                     title="Căn chỉnh tự động"
                     style={{
-                      background: "#4A6741",
+                      background: "#8B4513",
                       color: "#F5F0E8",
                       border: "none",
                       borderRadius: "5px",
@@ -1671,42 +1698,33 @@ function TreeEditorInner() {
                   </button>
                 </div>
 
-                {/* Export + back */}
+                {/* Export */}
                 <div
                   style={{
                     padding: "8px 10px",
                     borderBottom: "1px solid #E8E0D0",
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr 1fr",
+                    gridTemplateColumns: "1fr 1fr",
                     gap: "5px",
                   }}
                 >
                   {[
                     {
                       label: "📷 PNG",
-                      bg: "#2D5016",
                       onClick: handleExportPNG,
                     },
                     {
                       label: "📄 PDF",
-                      bg: "#7B3A10",
                       onClick: handleExportPDF,
-                    },
-                    {
-                      label: "← Về",
-                      bg: "transparent",
-                      color: "#8B4513",
-                      border: "1px solid #C4A882",
-                      onClick: () => navigate("/dashboard"),
                     },
                   ].map((b) => (
                     <button
                       key={b.label}
                       onClick={b.onClick}
                       style={{
-                        background: b.bg ?? "#transparent",
-                        color: b.color ?? "#F5F0E8",
-                        border: b.border ?? "none",
+                        background: "#8B4513",
+                        color: "#F5F0E8",
+                        border: "none",
                         borderRadius: "5px",
                         padding: "5px 2px",
                         fontSize: "0.68rem",

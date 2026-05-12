@@ -7,7 +7,7 @@ from sqlalchemy import text
 from .database import engine, SessionLocal
 from . import models
 from .auth import get_password_hash
-from .routers import auth, trees, persons, admin, notifications, billing, print_orders, settings, cron, facebook_webhook
+from .routers import auth, trees, persons, admin, notifications, billing, print_orders, settings, cron, facebook_webhook, telegram_webhook
 from .plans import PLAN_LIMITS
 
 app = FastAPI(
@@ -36,6 +36,7 @@ app.include_router(print_orders.router)
 app.include_router(settings.router)
 app.include_router(cron.router)
 app.include_router(facebook_webhook.router)
+app.include_router(telegram_webhook.router)
 
 
 def _migrate_notification_columns():
@@ -45,7 +46,10 @@ def _migrate_notification_columns():
             ("zalo_enabled",    "ALTER TABLE notification_settings ADD COLUMN IF NOT EXISTS zalo_enabled BOOLEAN DEFAULT FALSE"),
             ("facebook_enabled","ALTER TABLE notification_settings ADD COLUMN IF NOT EXISTS facebook_enabled BOOLEAN DEFAULT FALSE"),
             ("facebook_psid",        "ALTER TABLE notification_settings ADD COLUMN IF NOT EXISTS facebook_psid VARCHAR"),
-            ("facebook_link_token",  "ALTER TABLE notification_settings ADD COLUMN IF NOT EXISTS facebook_link_token VARCHAR"),
+            ("facebook_link_token",   "ALTER TABLE notification_settings ADD COLUMN IF NOT EXISTS facebook_link_token VARCHAR"),
+            ("telegram_enabled",     "ALTER TABLE notification_settings ADD COLUMN IF NOT EXISTS telegram_enabled BOOLEAN DEFAULT FALSE"),
+            ("telegram_chat_id",     "ALTER TABLE notification_settings ADD COLUMN IF NOT EXISTS telegram_chat_id VARCHAR"),
+            ("telegram_link_token",  "ALTER TABLE notification_settings ADD COLUMN IF NOT EXISTS telegram_link_token VARCHAR"),
             ("print_orders",    None),  # table created by create_all
             ("nickname",        "ALTER TABLE persons ADD COLUMN IF NOT EXISTS nickname VARCHAR"),
             ("notify_events",   "ALTER TABLE persons ADD COLUMN IF NOT EXISTS notify_events BOOLEAN DEFAULT TRUE NOT NULL"),

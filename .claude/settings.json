@@ -1,12 +1,20 @@
 {
   "permissions": {
-    "deny": [
-      "Bash(git commit *)"
-    ],
     "allow": [
       "Bash(mkdir -p /Users/letrinh/family-tree/api)",
       "Skill(update-config)",
-      "Skill(update-config:*)"
+      "Skill(update-config:*)",
+      "Bash(curl -s \"https://api.telegram.org/bot8735335964:AAHEeb656ZciT0IRhxbXN5L5fiW8YDw__xM/getMe\")",
+      "Bash(docker compose *)",
+      "Bash(curl -s \"https://api.telegram.org/bot8735335964:AAHEeb656ZciT0IRhxbXN5L5fiW8YDw__xM/getUpdates\")",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -X POST http://localhost:9000/api/telegram/poll)",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s -X POST http://localhost:9000/api/auth/login -H 'Content-Type: application/x-www-form-urlencoded' -d 'username=trinhlt&password=111')",
+      "Bash(curl -s -X POST http://localhost:9000/api/notifications/test -H 'Authorization: Bearer __CMDSUB_OUTPUT__')"
+    ],
+    "deny": [
+      "Bash(git commit *)"
     ],
     "additionalDirectories": [
       "/Users/letrinh/family-tree"

@@ -2,8 +2,8 @@ import React, { useState, memo } from 'react'
 import { Handle, Position } from 'reactflow'
 
 const genderColors = {
-  male: { bg: '#EBF4FF', border: '#4A90D9', avatar: '#4A90D9' },
-  female: { bg: '#FEF0F6', border: '#D946A8', avatar: '#D946A8' },
+  male:    { bg: '#F5F0E8', border: '#C4A882', avatar: '#8B4513' },
+  female:  { bg: '#F5F0E8', border: '#C4A882', avatar: '#8B4513' },
   unknown: { bg: '#F5F0E8', border: '#C4A882', avatar: '#8B4513' },
 }
 
@@ -40,13 +40,9 @@ const PersonNode = memo(({ data, selected }) => {
   const deathYear = extractYear(data.death_date)
 
   let lifespan = ''
-  if (birthYear && deathYear) {
-    lifespan = `${birthYear} – ${deathYear}`
-  } else if (birthYear) {
-    lifespan = `Sinh ${birthYear} – Còn sống`
-  } else if (deathYear) {
-    lifespan = `Mất ${deathYear}`
-  }
+  if (birthYear && deathYear) lifespan = `${birthYear} – ${deathYear}`
+  else if (birthYear) lifespan = birthYear
+  else if (deathYear) lifespan = `† ${deathYear}`
 
   return (
     <div
@@ -139,23 +135,16 @@ const PersonNode = memo(({ data, selected }) => {
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#3C2415', lineHeight: 1.3, wordBreak: 'break-word' }}>
+          <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#3C2415', lineHeight: 1.3, wordBreak: 'break-word' }}>
             {data.full_name}
           </div>
           {data.nickname && (
-            <div style={{ fontSize: '0.7rem', color: '#8B4513', fontStyle: 'italic', marginTop: 1 }}>"{data.nickname}"</div>
+            <div style={{ fontSize: '0.72rem', color: '#8B4513', fontStyle: 'italic', marginTop: 1 }}>
+              ({data.nickname})
+            </div>
           )}
           {lifespan && (
-            <div style={{ fontSize: '0.7rem', color: '#7a5c3e', marginTop: 2 }}>{lifespan}</div>
-          )}
-          {data.occupation && (
-            <div style={{
-              fontSize: '0.68rem', color: '#8a6c50', marginTop: 2,
-              fontStyle: 'italic', overflow: 'hidden',
-              textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {data.occupation}
-            </div>
+            <div style={{ fontSize: '0.72rem', color: '#7a5c3e', marginTop: 3 }}>{lifespan}</div>
           )}
         </div>
       </div>

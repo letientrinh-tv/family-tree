@@ -14,6 +14,7 @@ const CHANNEL_META = {
   email:    { label: 'Email',    icon: '📧', bg: '#EBF4FF', color: '#1d4ed8' },
   zalo:     { label: 'Zalo',     icon: '💬', bg: '#E8F5E9', color: '#006838' },
   facebook: { label: 'Facebook', icon: '📘', bg: '#E8EAF6', color: '#1877F2' },
+  telegram: { label: 'Telegram', icon: '✈️', bg: '#E3F2FD', color: '#0088cc' },
   sms:      { label: 'SMS',      icon: '📱', bg: '#F0FDF4', color: '#15803d' },
 }
 
@@ -100,8 +101,11 @@ export default function Notifications() {
   const [loadingLogs, setLoadingLogs] = useState(true)
   const [activeTab, setActiveTab] = useState('upcoming')
   const [fbLinking, setFbLinking] = useState(false)
-  const [fbLinkInfo, setFbLinkInfo] = useState(null)   // { token, messenger_url }
+  const [fbLinkInfo, setFbLinkInfo] = useState(null)
   const [fbChecking, setFbChecking] = useState(false)
+  const [tgLinking, setTgLinking] = useState(false)
+  const [tgLinkUrl, setTgLinkUrl] = useState(null)
+  const [tgChecking, setTgChecking] = useState(false)
 
   const fetchAll = useCallback(async () => {
     try {
@@ -133,6 +137,8 @@ export default function Notifications() {
         email_enabled: form.email_enabled,
         zalo_enabled: form.zalo_enabled,
         facebook_enabled: form.facebook_enabled,
+        telegram_enabled: form.telegram_enabled,
+        telegram_chat_id: form.telegram_chat_id || null,
         days_before: form.days_before,
         active: form.active,
       })
@@ -187,7 +193,51 @@ export default function Notifications() {
     }
   }
 
+  const handleTelegramLink = async () => {
+    setTgLinking(true)
+    try {
+      const res = await apiClient.post('/notifications/telegram/link-token')
+      setTgLinkUrl(res.data.telegram_url)
+    } catch {
+      toast.error('Không thể tạo link kết nối')
+    } finally {
+      setTgLinking(false)
+    }
+  }
+
+  const handleTelegramCheck = async () => {
+    setTgChecking(true)
+    try {
+      // Poll Telegram trước để xử lý tin nhắn pending
+      await apiClient.post('/telegram/poll').catch(() => {})
+      const res = await apiClient.get('/notifications/telegram/status')
+      if (res.data.linked) {
+        toast.success('Kết nối Telegram thành công!')
+        setTgLinkUrl(null)
+        fetchAll()
+      } else {
+        toast.error('Chưa nhận được tin nhắn. Hãy mở link và nhắn START.')
+      }
+    } catch {
+      toast.error('Không thể kiểm tra trạng thái')
+    } finally {
+      setTgChecking(false)
+    }
+  }
+
+  const handleTelegramUnlink = async () => {
+    try {
+      await apiClient.delete('/notifications/telegram/unlink')
+      toast.success('Đã huỷ kết nối Telegram')
+      setTgLinkUrl(null)
+      fetchAll()
+    } catch {
+      toast.error('Huỷ kết nối thất bại')
+    }
+  }
+
   const handleTest = async () => {
+    if (!window.confirm('Gửi tin nhắn test đến tất cả kênh đang bật?')) return
     setTesting(true)
     try {
       const res = await apiClient.post('/notifications/test')
@@ -204,12 +254,17 @@ export default function Notifications() {
     }
   }
 
+  const isAdmin = user?.role === 'admin'
+  const testAlreadySent = !isAdmin && logs.some(l => l.event_type === 'test')
+
   const isDirty = form && settings && (
     form.notify_email !== settings.notify_email ||
     form.notify_phone !== settings.notify_phone ||
     form.email_enabled !== settings.email_enabled ||
     form.zalo_enabled !== settings.zalo_enabled ||
     form.facebook_enabled !== settings.facebook_enabled ||
+    form.telegram_enabled !== settings.telegram_enabled ||
+    form.telegram_chat_id !== settings.telegram_chat_id ||
     form.days_before !== settings.days_before ||
     form.active !== settings.active
   )
@@ -291,7 +346,7 @@ export default function Notifications() {
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 16 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}>
                     {/* Email */}
                     <div style={{ background: '#F8F4EF', borderRadius: 8, padding: 16, border: '1px solid #C4A882', opacity: form.active ? 1 : 0.6 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -305,137 +360,94 @@ export default function Notifications() {
                       <div style={{ fontSize: '0.72rem', color: '#9a7c60', marginTop: 4 }}>Để trống dùng email tài khoản</div>
                     </div>
 
-                    {/* Zalo */}
-                    <div style={{ background: '#F0FBF4', borderRadius: 8, padding: 16, border: '1px solid #7dba8c', opacity: form.active ? 1 : 0.6 }}>
+                    {/* Telegram */}
+                    <div style={{ background: '#E3F2FD', borderRadius: 8, padding: 16, border: '1px solid #90caf9', opacity: form.active ? 1 : 0.6 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <span style={{ fontWeight: 700, color: '#006838', fontSize: '0.92rem' }}>💬 Zalo</span>
-                        <Toggle checked={form.zalo_enabled || false} onChange={v => setForm(f => ({ ...f, zalo_enabled: v }))} disabled={!form.active} />
-                      </div>
-                      <label style={labelStyle}>Số điện thoại Zalo</label>
-                      <input type="tel" value={form.notify_phone || ''} onChange={e => setForm(f => ({ ...f, notify_phone: e.target.value }))}
-                        placeholder="0912345678" disabled={!form.active || !form.zalo_enabled}
-                        style={{ ...inputStyle, opacity: (!form.active || !form.zalo_enabled) ? 0.5 : 1 }} />
-                      <div style={{ fontSize: '0.72rem', color: '#4a8a60', marginTop: 4 }}>
-                        Bạn cần <strong>quan tâm OA Zalo</strong> của chúng tôi trước
-                      </div>
-                    </div>
-
-                    {/* Facebook Messenger */}
-                    <div style={{ background: '#EEF2FF', borderRadius: 8, padding: 16, border: '1px solid #93a8f0', opacity: form.active ? 1 : 0.6 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                        <span style={{ fontWeight: 700, color: '#1877F2', fontSize: '0.92rem' }}>📘 Facebook</span>
+                        <span style={{ fontWeight: 700, color: '#0088cc', fontSize: '0.92rem' }}>✈️ Telegram</span>
                         <Toggle
-                          checked={form.facebook_enabled || false}
-                          onChange={v => setForm(f => ({ ...f, facebook_enabled: v }))}
+                          checked={form.telegram_enabled || false}
+                          onChange={v => setForm(f => ({ ...f, telegram_enabled: v }))}
                           disabled={!form.active}
                         />
                       </div>
 
-                      {/* Đã kết nối */}
-                      {settings?.facebook_psid ? (
+                      {settings?.telegram_chat_id ? (
                         <div>
                           <div style={{
                             display: 'flex', alignItems: 'center', gap: 8,
                             background: '#dcfce7', border: '1px solid #86efac',
                             borderRadius: 6, padding: '8px 10px', marginBottom: 8,
                           }}>
-                            <span style={{ fontSize: '1rem' }}>✅</span>
-                            <span style={{ fontSize: '0.82rem', color: '#166534', fontWeight: 600 }}>
-                              Đã kết nối Messenger
-                            </span>
+                            <span>✅</span>
+                            <span style={{ fontSize: '0.82rem', color: '#166534', fontWeight: 600 }}>Đã kết nối Telegram</span>
                           </div>
                           <button
-                            onClick={handleFacebookUnlink}
+                            onClick={handleTelegramUnlink}
                             disabled={!form.active}
                             style={{
                               width: '100%', padding: '7px 0',
                               background: 'white', border: '1px solid #fca5a5',
                               borderRadius: 6, color: '#b91c1c',
-                              fontSize: '0.82rem', fontWeight: 600,
-                              cursor: 'pointer',
+                              fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
                             }}
-                          >
-                            Huỷ kết nối
-                          </button>
+                          >Huỷ kết nối</button>
                         </div>
-                      ) : fbLinkInfo ? (
-                        /* Đang chờ user nhắn tin */
+                      ) : tgLinkUrl ? (
                         <div>
                           <div style={{
                             background: '#fffbeb', border: '1px solid #fcd34d',
                             borderRadius: 6, padding: '10px 12px', marginBottom: 10,
-                            fontSize: '0.82rem', color: '#92400e', lineHeight: 1.8,
+                            fontSize: '0.82rem', color: '#92400e', lineHeight: 1.6,
                           }}>
-                            <strong>Bước 1:</strong> Mở Messenger bên dưới<br />
-                            <strong>Bước 2:</strong> Gửi đúng đoạn mã này:
-                            <div
-                              onClick={() => { navigator.clipboard.writeText(`LINK:${fbLinkInfo.token}`); }}
-                              title="Click để copy"
-                              style={{
-                                margin: '6px 0 2px',
-                                padding: '7px 10px',
-                                background: '#fff',
-                                border: '1px dashed #f59e0b',
-                                borderRadius: 5,
-                                fontFamily: 'monospace',
-                                fontWeight: 700,
-                                fontSize: '0.95rem',
-                                letterSpacing: '0.05em',
-                                color: '#92400e',
-                                cursor: 'pointer',
-                                userSelect: 'all',
-                              }}
-                            >
-                              LINK:{fbLinkInfo.token} <span style={{ fontSize: '0.7rem', fontWeight: 400 }}>📋 click để copy</span>
-                            </div>
+                            <strong>Bước 1:</strong> Click nút bên dưới để mở bot<br />
+                            <strong>Bước 2:</strong> Nhấn <strong>START</strong> trong Telegram<br />
                             <strong>Bước 3:</strong> Nhấn "Kiểm tra kết nối"
                           </div>
                           <a
-                            href={fbLinkInfo.messenger_url}
+                            href={tgLinkUrl}
                             target="_blank"
                             rel="noreferrer"
                             style={{
                               display: 'block', textAlign: 'center',
                               padding: '9px 0', marginBottom: 8,
-                              background: '#1877F2', color: 'white',
+                              background: '#0088cc', color: 'white',
                               borderRadius: 6, fontSize: '0.88rem',
                               fontWeight: 700, textDecoration: 'none',
                             }}
                           >
-                            💬 Mở Messenger nhắn tin
+                            ✈️ Mở @GiaPhaVietBot
                           </a>
                           <button
-                            onClick={handleFacebookCheckLinked}
-                            disabled={fbChecking}
+                            onClick={handleTelegramCheck}
+                            disabled={tgChecking}
                             style={{
                               width: '100%', padding: '8px 0',
-                              background: 'white', border: '1px solid #93a8f0',
-                              borderRadius: 6, color: '#1877F2',
+                              background: 'white', border: '1px solid #90caf9',
+                              borderRadius: 6, color: '#0088cc',
                               fontSize: '0.82rem', fontWeight: 600,
-                              cursor: fbChecking ? 'wait' : 'pointer',
+                              cursor: tgChecking ? 'wait' : 'pointer',
                             }}
                           >
-                            {fbChecking ? 'Đang kiểm tra...' : '🔄 Kiểm tra kết nối'}
+                            {tgChecking ? 'Đang kiểm tra...' : '🔄 Kiểm tra kết nối'}
                           </button>
                         </div>
                       ) : (
-                        /* Chưa kết nối */
                         <div>
-                          <div style={{ fontSize: '0.78rem', color: '#4a60a8', marginBottom: 10, lineHeight: 1.5 }}>
-                            Kết nối Messenger để nhận thông báo sinh nhật & ngày giỗ trực tiếp qua Facebook.
+                          <div style={{ fontSize: '0.78rem', color: '#0066aa', marginBottom: 10, lineHeight: 1.5 }}>
+                            Kết nối Telegram để nhận thông báo sinh nhật & ngày giỗ tức thì.
                           </div>
                           <button
-                            onClick={handleFacebookLink}
-                            disabled={!form.active || fbLinking}
+                            onClick={handleTelegramLink}
+                            disabled={!form.active || tgLinking}
                             style={{
                               width: '100%', padding: '9px 0',
-                              background: form.active ? '#1877F2' : '#93a8f0',
+                              background: form.active ? '#0088cc' : '#90caf9',
                               border: 'none', borderRadius: 6,
                               color: 'white', fontSize: '0.88rem',
-                              fontWeight: 700, cursor: (!form.active || fbLinking) ? 'not-allowed' : 'pointer',
+                              fontWeight: 700, cursor: (!form.active || tgLinking) ? 'not-allowed' : 'pointer',
                             }}
                           >
-                            {fbLinking ? 'Đang tạo link...' : '🔗 Kết nối Messenger'}
+                            {tgLinking ? 'Đang tạo link...' : '🔗 Kết nối Telegram'}
                           </button>
                         </div>
                       )}
@@ -471,24 +483,26 @@ export default function Notifications() {
 
                   {/* Action buttons */}
                   <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', paddingTop: 4 }}>
-                    <button
-                      onClick={handleTest}
-                      disabled={testing || (!form.email_enabled && !form.zalo_enabled && !form.facebook_enabled)}
-                      style={{
-                        padding: '9px 20px',
-                        background: 'white',
-                        border: '1px solid #C4A882',
-                        borderRadius: 6,
-                        color: '#8B4513',
-                        fontFamily: 'Lora, Georgia, serif',
-                        fontSize: '0.88rem',
-                        fontWeight: 600,
-                        cursor: testing ? 'wait' : 'pointer',
-                        opacity: (!form.email_enabled && !form.zalo_enabled && !form.facebook_enabled) ? 0.5 : 1,
-                      }}
-                    >
-                      {testing ? 'Đang gửi...' : '📤 Gửi test'}
-                    </button>
+                    <div style={{ position: 'relative', display: 'inline-block' }} title={testAlreadySent ? 'Bạn đã gửi test rồi. Mỗi tài khoản chỉ được gửi 1 lần.' : ''}>
+                      <button
+                        onClick={handleTest}
+                        disabled={testing || testAlreadySent || (!form.email_enabled && !form.telegram_enabled)}
+                        style={{
+                          padding: '9px 20px',
+                          background: 'white',
+                          border: '1px solid #C4A882',
+                          borderRadius: 6,
+                          color: testAlreadySent ? '#aaa' : '#8B4513',
+                          fontFamily: 'Lora, Georgia, serif',
+                          fontSize: '0.88rem',
+                          fontWeight: 600,
+                          cursor: (testing || testAlreadySent) ? 'not-allowed' : 'pointer',
+                          opacity: (testAlreadySent || (!form.email_enabled && !form.telegram_enabled)) ? 0.5 : 1,
+                        }}
+                      >
+                        {testing ? 'Đang gửi...' : testAlreadySent ? '📤 Đã gửi test' : '📤 Gửi test'}
+                      </button>
+                    </div>
                     <button
                       onClick={handleSave}
                       disabled={saving || !isDirty}
@@ -673,9 +687,8 @@ export default function Notifications() {
         {/* Info box */}
         <div style={{ marginTop: 20, background: '#FFF8E7', border: '1px solid #d97706', borderRadius: 8, padding: '14px 18px', fontSize: '0.82rem', color: '#7a5c3e', lineHeight: 1.7 }}>
           <strong style={{ color: '#92400e' }}>ℹ️ Hướng dẫn cài đặt:</strong><br />
-          • <strong>Email:</strong> Admin cấu hình <code>SMTP_USERNAME</code> / <code>SMTP_PASSWORD</code> trong <code>.env</code>. Gmail cần bật <em>App Password</em>.<br />
-          • <strong>Zalo:</strong> Admin cấu hình <code>ZALO_OA_ACCESS_TOKEN</code> từ <a href="https://oa.zalo.me" target="_blank" rel="noreferrer" style={{ color: '#006838' }}>oa.zalo.me</a>. Người dùng cần <strong>quan tâm OA Zalo</strong> trước khi nhận tin.<br />
-          • <strong>Facebook:</strong> Admin cấu hình <code>FACEBOOK_PAGE_ACCESS_TOKEN</code>. Người dùng lấy PSID bằng cách nhắn tin cho trang Facebook của chúng tôi.<br />
+          • <strong>Email:</strong> Nhập địa chỉ email để nhận thông báo. Để trống sẽ dùng email tài khoản.<br />
+          • <strong>Telegram:</strong> Nhấn "Kết nối Telegram", mở bot và gửi START để liên kết tài khoản.<br />
           • Hệ thống tự động gửi nhắc nhở lúc <strong>8:00 SA</strong> mỗi ngày.
         </div>
       </div>

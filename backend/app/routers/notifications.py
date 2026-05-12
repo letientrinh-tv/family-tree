@@ -8,7 +8,7 @@ from ..database import get_db
 from .. import models, schemas
 from ..auth import get_current_user
 from ..notifications import (
-    get_upcoming_events, send_email, send_zalo, send_facebook,
+    get_upcoming_events, send_email, send_zalo, send_facebook, send_telegram,
     _build_email_html, _build_short_message,
 )
 
@@ -65,6 +65,17 @@ def send_test_notification(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if current_user.role != "admin":
+        already = db.query(models.NotificationLog).filter(
+            models.NotificationLog.user_id == current_user.id,
+            models.NotificationLog.event_type == "test",
+        ).first()
+        if already:
+            raise HTTPException(
+                status_code=429,
+                detail="Bạn đã gửi thông báo test rồi. Mỗi tài khoản chỉ được gửi 1 lần.",
+            )
+
     setting = _get_or_create_setting(current_user, db)
     results = {}
 
@@ -99,11 +110,56 @@ def send_test_notification(
         db.add(models.NotificationLog(user_id=current_user.id, person_id=None, event_type="test",
             event_date="test", channel="facebook", recipient=setting.facebook_psid, success=ok, error_message=None if ok else err))
 
+    if setting.telegram_enabled and setting.telegram_chat_id:
+        msg = _build_short_message(current_user.username, sample)
+        ok, err = send_telegram(setting.telegram_chat_id, msg)
+        results["telegram"] = {"success": ok, "recipient": setting.telegram_chat_id, "error": err if not ok else None}
+        db.add(models.NotificationLog(user_id=current_user.id, person_id=None, event_type="test",
+            event_date="test", channel="telegram", recipient=setting.telegram_chat_id, success=ok, error_message=None if ok else err))
+
     db.commit()
 
     if not results:
         raise HTTPException(status_code=400, detail="Chưa bật kênh thông báo nào.")
     return {"results": results}
+
+
+@router.post("/telegram/link-token")
+def generate_telegram_link_token(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    bot_username = os.getenv("TELEGRAM_BOT_USERNAME", "GiaPhaVietBot")
+    setting = _get_or_create_setting(current_user, db)
+    token = secrets.token_urlsafe(12)
+    setting.telegram_link_token = token
+    db.commit()
+    return {
+        "token": token,
+        "telegram_url": f"https://t.me/{bot_username}?start={token}",
+    }
+
+
+@router.get("/telegram/status")
+def telegram_link_status(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    setting = _get_or_create_setting(current_user, db)
+    return {"linked": bool(setting.telegram_chat_id), "enabled": setting.telegram_enabled}
+
+
+@router.delete("/telegram/unlink")
+def unlink_telegram(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    setting = _get_or_create_setting(current_user, db)
+    setting.telegram_chat_id = None
+    setting.telegram_link_token = None
+    setting.telegram_enabled = False
+    db.commit()
+    return {"status": "unlinked"}
 
 
 @router.post("/facebook/link-token")

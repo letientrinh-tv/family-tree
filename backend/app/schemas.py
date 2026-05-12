@@ -175,6 +175,8 @@ class NotificationSettingUpdate(BaseModel):
     zalo_enabled: Optional[bool] = None
     facebook_enabled: Optional[bool] = None
     facebook_psid: Optional[str] = None
+    telegram_enabled: Optional[bool] = None
+    telegram_chat_id: Optional[str] = None
     days_before: Optional[int] = None
     active: Optional[bool] = None
 
@@ -188,6 +190,8 @@ class NotificationSettingResponse(BaseModel):
     zalo_enabled: bool = False
     facebook_enabled: bool = False
     facebook_psid: Optional[str] = None
+    telegram_enabled: bool = False
+    telegram_chat_id: Optional[str] = None
     days_before: int
     active: bool
     created_at: datetime

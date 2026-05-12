@@ -132,6 +132,26 @@ def send_facebook(psid: str, message: str) -> tuple:
         return False, str(e)
 
 
+# ── Telegram ──────────────────────────────────────────────────
+
+def send_telegram(chat_id: str, message: str) -> tuple:
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    if not token:
+        return False, "Telegram chưa được cấu hình (thiếu TELEGRAM_BOT_TOKEN)"
+    try:
+        resp = httpx.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": message, "parse_mode": "HTML"},
+            timeout=10,
+        )
+        data = resp.json()
+        if data.get("ok"):
+            return True, "OK"
+        return False, data.get("description", "Telegram API lỗi")
+    except Exception as e:
+        return False, str(e)
+
+
 # ── Event helpers ─────────────────────────────────────────────
 
 def _parse_month_day(date_str: str) -> tuple:
@@ -246,7 +266,7 @@ def _build_short_message(username: str, events: List[dict]) -> str:
     for e in events[:5]:
         label = "Sinh nhật" if e["event_type"] == "birthday" else "Ngày giỗ"
         days = "hôm nay!" if e["days_until"] == 0 else f"còn {e['days_until']} ngày"
-        lines.append(f"• {label} {e['person_name']} – {days}")
+        lines.append(f"• {label} {e['person_name']} ({e['tree_name']}) – {days}")
     if len(events) > 5:
         lines.append(f"... và {len(events) - 5} sự kiện khác")
     return "\n".join(lines)
@@ -311,6 +331,17 @@ def run_daily_notifications(db: Session):
                 channel="zalo",
                 recipient=setting.notify_phone,
                 success=ok,
+                error_message=None if ok else err,
+            ))
+
+        # Telegram
+        if setting.telegram_enabled and setting.telegram_chat_id and not _already_sent("telegram"):
+            msg = _build_short_message(user.username, events)
+            ok, err = send_telegram(setting.telegram_chat_id, msg)
+            db.add(models.NotificationLog(
+                user_id=user.id, person_id=None, event_type="summary",
+                event_date=today_str, channel="telegram",
+                recipient=setting.telegram_chat_id, success=ok,
                 error_message=None if ok else err,
             ))
 
