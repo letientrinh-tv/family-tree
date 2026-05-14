@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 
 import Navbar from './components/Navbar'
 import ErrorBoundary from './components/ErrorBoundary'
+import FloatingChat from './components/FloatingChat'
 import Home from './pages/Home'
 import Guide from './pages/Guide'
 import Login from './pages/Login'
@@ -114,6 +115,7 @@ function AppRoutes() {
           </Routes>
         </main>
       </div>
+      <FloatingChat />
       <Toaster
         position="top-right"
         toastOptions={{

@@ -160,8 +160,11 @@ def get_stats(
 
 
 @router.get("/plans")
-def get_plans():
-    return PLAN_LIMITS
+def get_plans(db: Session = Depends(get_db)):
+    from ..models import PlanSetting
+    rows = db.query(PlanSetting).all()
+    result = {r.key: {"label": r.label, "trees": r.trees, "members_per_tree": r.members_per_tree, "price": r.price} for r in rows}
+    return {k: result.get(k, PLAN_LIMITS[k]) for k in PLAN_LIMITS}
 
 
 @router.get("/print-orders", response_model=List[schemas.PrintOrderWithUser])

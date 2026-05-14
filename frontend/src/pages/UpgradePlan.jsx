@@ -4,11 +4,18 @@ import toast from 'react-hot-toast'
 import apiClient from '../api/client'
 import { useAuth } from '../context/AuthContext'
 
-const PLANS = {
-  free:     { label: 'Miễn phí',   price: 0,       trees: 1, members: 30,   color: '#6b7280', bg: '#f9fafb', border: '#d1d5db', icon: '🆓' },
-  basic:    { label: 'Cơ bản',     price: 300000,  trees: 1, members: 200,  color: '#2D5016', bg: '#f0fdf4', border: '#86efac', icon: '⭐' },
-  standard: { label: 'Tiêu chuẩn', price: 500000,  trees: 1, members: 1000, color: '#1d4ed8', bg: '#eff6ff', border: '#93c5fd', icon: '🌟' },
-  premium:  { label: 'Cao cấp',    price: 1000000, trees: 3, members: 2000, color: '#92400e', bg: '#fffbeb', border: '#fcd34d', icon: '👑' },
+const PLAN_VISUALS = {
+  free:     { bg: '#f9fafb', border: '#d1d5db', icon: '🆓' },
+  basic:    { bg: '#f0fdf4', border: '#86efac', icon: '⭐' },
+  standard: { bg: '#eff6ff', border: '#93c5fd', icon: '🌟' },
+  premium:  { bg: '#fffbeb', border: '#fcd34d', icon: '👑' },
+}
+
+const DEFAULT_PLANS = {
+  free:     { label: 'Miễn phí',   price: 0,       trees: 1, members: 30,   color: '#6b7280', ...PLAN_VISUALS.free },
+  basic:    { label: 'Cơ bản',     price: 300000,  trees: 1, members: 200,  color: '#2D5016', ...PLAN_VISUALS.basic },
+  standard: { label: 'Tiêu chuẩn', price: 500000,  trees: 1, members: 1000, color: '#1d4ed8', ...PLAN_VISUALS.standard },
+  premium:  { label: 'Cao cấp',    price: 1000000, trees: 3, members: 2000, color: '#92400e', ...PLAN_VISUALS.premium },
 }
 
 const PAID_PLANS = ['basic', 'standard', 'premium']
@@ -82,8 +89,8 @@ function CopyBtn({ text }) {
   )
 }
 
-function PaymentModal({ plan, user, onClose, onSuccess }) {
-  const p = PLANS[plan]
+function PaymentModal({ plan, user, onClose, onSuccess, plans }) {
+  const p = plans[plan] || DEFAULT_PLANS[plan] || DEFAULT_PLANS.free
   const [tab, setTab] = useState('qr')
   const [confirming, setConfirming] = useState(false)
   const transferContent = `NANGCAP ${user?.username?.toUpperCase()} ${plan.toUpperCase()}`
@@ -135,7 +142,7 @@ function PaymentModal({ plan, user, onClose, onSuccess }) {
               <span style={{ fontSize: '1.5rem', marginRight: 8 }}>{p.icon}</span>
               <span style={{ fontWeight: 700, color: p.color, fontSize: '1rem' }}>{p.label}</span>
               <span style={{ fontSize: '0.78rem', color: '#7a5c3e', marginLeft: 8 }}>
-                · {p.trees} cây · {p.members.toLocaleString()} TV/cây · 12 tháng
+                · {p.trees} cây · {(p.members ?? 0).toLocaleString()} TV/cây · 12 tháng
               </span>
             </div>
             <div style={{ fontWeight: 700, fontSize: '1.2rem', color: p.color }}>{fmtMoney(p.price)}</div>
@@ -240,11 +247,30 @@ export default function UpgradePlan() {
   const [selectedPlan, setSelectedPlan] = useState(null)
   const [success, setSuccess] = useState(false)
   const [activatedPlan, setActivatedPlan] = useState(null)
+  const [PLANS, setPlans] = useState(DEFAULT_PLANS)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
   useEffect(() => {
     const h = () => setIsMobile(window.innerWidth < 768)
     window.addEventListener('resize', h)
     return () => window.removeEventListener('resize', h)
+  }, [])
+
+  useEffect(() => {
+    apiClient.get('/billing/plans').then(res => {
+      const merged = {}
+      for (const [key, val] of Object.entries(res.data)) {
+        const visual = PLAN_VISUALS[key] || {}
+        merged[key] = {
+          label: val.label,
+          price: val.price,
+          trees: val.trees,
+          members: val.members_per_tree,
+          color: val.color || DEFAULT_PLANS[key]?.color || '#6b7280',
+          ...visual,
+        }
+      }
+      setPlans(prev => ({ ...prev, ...merged }))
+    }).catch(() => {})
   }, [])
 
   const currentPlan = PLANS[user?.plan] || PLANS.free
@@ -323,6 +349,41 @@ export default function UpgradePlan() {
       </div>
 
       <div style={{ maxWidth: 960, margin: '0 auto', padding: '28px 24px' }}>
+
+        {/* Print order banner */}
+        <div style={{
+          background: 'linear-gradient(135deg, #3C2415 0%, #8B4513 50%, #a0522d 100%)',
+          borderRadius: 14, padding: '20px 24px', marginBottom: 28,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexWrap: 'wrap', gap: 14,
+          boxShadow: '0 6px 24px rgba(139,69,19,0.35)',
+          border: '1px solid #fcd34d',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ fontSize: '2.8rem', lineHeight: 1 }}>🖼️</div>
+            <div>
+              <div style={{ fontFamily: 'Playfair Display, Georgia, serif', fontSize: '1.15rem', fontWeight: 700, color: '#fcd34d' }}>
+                Đặt in tranh gia phả khổ lớn
+              </div>
+              <div style={{ color: '#F5EFE4', fontSize: '0.82rem', marginTop: 4, maxWidth: 420, lineHeight: 1.5 }}>
+                In gia phả trên vải canvas, giấy mỹ thuật hoặc gỗ khắc — làm quà tặng ý nghĩa cho cả dòng họ.
+              </div>
+            </div>
+          </div>
+          <a
+            href="/dashboard"
+            onClick={e => { e.preventDefault(); navigate('/dashboard') }}
+            style={{
+              background: '#fcd34d', color: '#3C2415', fontFamily: 'Playfair Display, Georgia, serif',
+              fontWeight: 700, fontSize: '0.9rem', padding: '10px 22px',
+              borderRadius: 8, border: 'none', cursor: 'pointer', textDecoration: 'none',
+              whiteSpace: 'nowrap', boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              display: 'inline-block',
+            }}
+          >
+            📋 Đặt in ngay →
+          </a>
+        </div>
 
         {/* Current plan status */}
         <div style={{
@@ -526,6 +587,7 @@ export default function UpgradePlan() {
           user={user}
           onClose={() => setSelectedPlan(null)}
           onSuccess={handleSuccess}
+          plans={PLANS}
         />
       )}
     </div>

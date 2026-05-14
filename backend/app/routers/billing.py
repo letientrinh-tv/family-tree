@@ -16,8 +16,20 @@ class UpgradeRequest(BaseModel):
 
 
 @router.get("/plans")
-def get_plans():
-    return PLAN_LIMITS
+def get_plans(db: Session = Depends(get_db)):
+    rows = db.query(models.PlanSetting).all()
+    order = list(PLAN_LIMITS.keys())
+    result = {
+        r.key: {
+            "label": r.label,
+            "trees": r.trees,
+            "members_per_tree": r.members_per_tree,
+            "price": r.price,
+            "color": PLAN_LIMITS.get(r.key, {}).get("color", "#6b7280"),
+        }
+        for r in rows
+    }
+    return {k: result.get(k, PLAN_LIMITS[k]) for k in order}
 
 
 @router.get("/status", response_model=schemas.UserResponse)

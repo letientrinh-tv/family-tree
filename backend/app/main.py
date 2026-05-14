@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -9,34 +10,6 @@ from . import models
 from .auth import get_password_hash
 from .routers import auth, trees, persons, admin, notifications, billing, print_orders, settings, cron, facebook_webhook, telegram_webhook
 from .plans import PLAN_LIMITS
-
-app = FastAPI(
-    title="Gia Pha Viet API",
-    description="Backend API for the Vietnamese genealogy website",
-    version="1.0.0",
-)
-
-# CORS – allow all origins (frontend is same-origin on Vercel; wildcard covers dev)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include routers
-app.include_router(auth.router)
-app.include_router(trees.router)
-app.include_router(persons.router)
-app.include_router(admin.router)
-app.include_router(notifications.router)
-app.include_router(billing.router)
-app.include_router(print_orders.router)
-app.include_router(settings.router)
-app.include_router(cron.router)
-app.include_router(facebook_webhook.router)
-app.include_router(telegram_webhook.router)
 
 
 def _migrate_notification_columns():
@@ -64,14 +37,25 @@ def _migrate_notification_columns():
         db.close()
 
 
-@app.on_event("startup")
-def startup_event():
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # --- startup ---
     try:
         models.Base.metadata.create_all(bind=engine)
         _migrate_notification_columns()
     except Exception as e:
         print(f"DB init warning (DATABASE_URL configured?): {e}")
+        yield
         return
+
+    # APScheduler only in non-Vercel environments (Docker/local)
+    if not os.getenv("VERCEL"):
+        try:
+            from .scheduler import start_scheduler
+            start_scheduler()
+            print("Scheduler started: daily notifications at 08:00 ICT")
+        except Exception as e:
+            print(f"Scheduler warning: {e}")
 
     db2: Session = SessionLocal()
     try:
@@ -110,6 +94,46 @@ def startup_event():
             print("Admin user already exists")
     finally:
         db.close()
+
+    yield
+
+    # --- shutdown ---
+    if not os.getenv("VERCEL"):
+        try:
+            from .scheduler import stop_scheduler
+            stop_scheduler()
+        except Exception:
+            pass
+
+
+app = FastAPI(
+    title="Gia Pha Viet API",
+    description="Backend API for the Vietnamese genealogy website",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+# CORS – allow all origins (frontend is same-origin on Vercel; wildcard covers dev)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include routers
+app.include_router(auth.router)
+app.include_router(trees.router)
+app.include_router(persons.router)
+app.include_router(admin.router)
+app.include_router(notifications.router)
+app.include_router(billing.router)
+app.include_router(print_orders.router)
+app.include_router(settings.router)
+app.include_router(cron.router)
+app.include_router(facebook_webhook.router)
+app.include_router(telegram_webhook.router)
 
 
 @app.get("/")
