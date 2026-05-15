@@ -15,6 +15,7 @@ import TreeEditor from './pages/TreeEditor'
 import AdminPanel from './pages/AdminPanel'
 import Notifications from './pages/Notifications'
 import UpgradePlan from './pages/UpgradePlan'
+import Privacy from './pages/Privacy'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth()
@@ -62,6 +63,7 @@ function AppRoutes() {
             {/* Public routes */}
             <Route path="/" element={<Home />} />
             <Route path="/guide" element={<Guide />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
 
