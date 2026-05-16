@@ -8,7 +8,19 @@
       "Bash(docker-compose restart *)",
       "Bash(docker exec family-tree-backend-1 python3 -c ' *)",
       "Bash(git add *)",
-      "Bash(docker exec *)"
+      "Bash(docker exec *)",
+      "Bash(npm install *)",
+      "Bash(npm test *)",
+      "Bash(python scripts/seed_1000.py)",
+      "Bash(pip install *)",
+      "Bash(docker cp *)",
+      "Bash(Get-Content \"d:\\\\laragon\\\\www\\\\family-tree\\\\frontend\\\\src\\\\pages\\\\TreeEditor.jsx\")",
+      "Bash(Select-String -Pattern \"ReactFlow|nodes|edges|useMemo|useCallback|fitView\")",
+      "Bash(Select-Object -First 40)",
+      "Bash(Get-Content \"C:\\\\Users\\\\VN\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--laragon-www-family-tree\\\\2b6e02e6-dac6-42de-9fd9-f84fb54ec451\\\\tasks\\\\b7ruajfcn.output\" -Wait -Tail 30)",
+      "Bash(Start-Sleep 2)",
+      "Bash(py --version)",
+      "Bash(python3 -m pip install \"psycopg[binary]\" -q)"
     ]
   }
 }

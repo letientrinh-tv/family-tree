@@ -30,6 +30,7 @@ import PersonNode from "../components/PersonNode";
 import JunctionNode from "../components/JunctionNode";
 import PersonSidebar from "../components/PersonSidebar";
 import PrintOrderModal from "../components/PrintOrderModal";
+import BookPreviewModal from "../components/BookPreviewModal";
 import DatePicker from "../components/DatePicker";
 
 const nodeTypes = { person: PersonNode, junction: JunctionNode };
@@ -798,6 +799,7 @@ function TreeEditorInner() {
   const [connectModal, setConnectModal] = useState(null); // ReactFlow connection object
   const [showMemberList, setShowMemberList] = useState(false);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showBookModal, setShowBookModal] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const reactFlowRef = useRef(null);
@@ -1000,6 +1002,7 @@ function TreeEditorInner() {
   }, [getNodes, relationships, setNodes]);
 
   useEffect(() => {
+    if (persons.length > 300) return; // skip expensive realign for large trees
     const spouseCount = relationships.filter(
       (r) => r.relationship_type === "spouse",
     ).length;
@@ -1033,6 +1036,11 @@ function TreeEditorInner() {
   // Rebuild graph when data changes
   useEffect(() => {
     if (persons !== null && relationships !== null) {
+      if (persons.length > 200) {
+        // Defer heavy graph build to next tick so loading UI paints first
+        const id = setTimeout(() => refreshGraph(persons, relationships), 50);
+        return () => clearTimeout(id);
+      }
       refreshGraph(persons, relationships);
     }
   }, [persons, relationships, refreshGraph]);
@@ -1258,9 +1266,17 @@ function TreeEditorInner() {
     if (nodeList.length === 0) throw new Error("Không có dữ liệu để xuất");
     const bounds = getNodesBounds(nodeList);
     const padding = 40;
-    const W = bounds.width + padding * 2;
-    const H = bounds.height + padding * 2;
-    const viewport = getViewportForBounds(bounds, W, H, 0.5, 2, padding);
+    let W = bounds.width + padding * 2;
+    let H = bounds.height + padding * 2;
+
+    // Cap resolution for large trees to avoid OOM — scale proportionally
+    const MAX_PX = 8000;
+    const rawMax = Math.max(W, H);
+    const scale = rawMax > MAX_PX ? MAX_PX / rawMax : 1;
+    W = Math.round(W * scale);
+    H = Math.round(H * scale);
+
+    const viewport = getViewportForBounds(bounds, W, H, 0.05, 2, padding);
     const flowEl = document.querySelector(".react-flow__viewport");
     if (!flowEl) throw new Error("Không tìm thấy canvas");
     return toPng(flowEl, {
@@ -1519,10 +1535,12 @@ function TreeEditorInner() {
           nodeTypes={nodeTypes}
           fitView
           fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.1}
+          minZoom={0.05}
           maxZoom={2}
           style={{ background: "#f0ead8" }}
           deleteKeyCode={null}
+          onlyRenderVisibleElements={persons.length > 100}
+          nodesDraggable={persons.length <= 300}
         >
           <Background color="#c4a882" variant="dots" gap={24} size={1.5} />
           <Controls
@@ -1531,10 +1549,12 @@ function TreeEditorInner() {
               border: "1px solid #C4A882",
             }}
           />
-          <MiniMap
-            nodeColor={() => "#C4A882"}
-            style={{ border: "1px solid #C4A882", background: "#FDFAF5" }}
-          />
+          {persons.length <= 500 && (
+            <MiniMap
+              nodeColor={() => "#C4A882"}
+              style={{ border: "1px solid #C4A882", background: "#FDFAF5" }}
+            />
+          )}
 
           {/* Mobile toggle button */}
           {isMobile && (
@@ -1739,8 +1759,8 @@ function TreeEditorInner() {
                   ))}
                 </div>
 
-                {/* Print order */}
-                <div style={{ padding: "8px 10px" }}>
+                {/* Print order + Book */}
+                <div style={{ padding: "8px 10px", display: "flex", flexDirection: "column", gap: 5 }}>
                   <button
                     onClick={() => setShowPrintModal(true)}
                     title="Đặt in tranh gia phả"
@@ -1760,7 +1780,45 @@ function TreeEditorInner() {
                   >
                     🖨 Đặt in tranh
                   </button>
+                  <button
+                    onClick={() => setShowBookModal(true)}
+                    title="Xem trước và in sách gia phả"
+                    disabled={persons.length === 0}
+                    style={{
+                      width: "100%",
+                      background: "linear-gradient(135deg, #1a5c3a, #2e8b57)",
+                      color: "#F5F0E8",
+                      border: "none",
+                      borderRadius: "5px",
+                      padding: "7px 4px",
+                      fontSize: "0.72rem",
+                      cursor: persons.length === 0 ? "not-allowed" : "pointer",
+                      fontFamily: "Lora, Georgia, serif",
+                      fontWeight: 600,
+                      textAlign: "center",
+                      opacity: persons.length === 0 ? 0.5 : 1,
+                    }}
+                  >
+                    📖 In sách
+                  </button>
                 </div>
+              </div>
+            </Panel>
+          )}
+
+          {/* Large-tree performance notice */}
+          {persons.length > 200 && (
+            <Panel position="top-center">
+              <div style={{
+                background: "#FFF8E7",
+                border: "1px solid #C4A882",
+                borderRadius: 6,
+                padding: "4px 12px",
+                fontSize: "0.7rem",
+                color: "#7a5c3e",
+                fontFamily: "Lora, Georgia, serif",
+              }}>
+                Cây lớn ({persons.length} người) — chỉ render vùng nhìn thấy · kéo zoom để khám phá
               </div>
             </Panel>
           )}
@@ -1918,6 +1976,18 @@ function TreeEditorInner() {
           onClose={() => setShowPrintModal(false)}
           treeId={treeData?.id}
           treeName={treeData?.name}
+          getTreeImage={getExportDataUrl}
+          personCount={persons.length}
+        />
+      )}
+
+      {/* Book Preview Modal */}
+      {showBookModal && (
+        <BookPreviewModal
+          onClose={() => setShowBookModal(false)}
+          treeData={treeData}
+          persons={persons}
+          relationships={relationships}
           getTreeImage={getExportDataUrl}
         />
       )}

@@ -45,3 +45,7 @@ npm-debug.log*
 
 # Docker
 .docker/
+
+# Dev scripts (chứa credentials - chỉ dùng local)
+scripts/
+commit_msg.txt

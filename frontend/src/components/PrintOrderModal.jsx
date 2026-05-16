@@ -105,7 +105,7 @@ function FramePreview({ templateId, treeImage, treeName, bgImageOverride, width 
   )
 }
 
-export default function PrintOrderModal({ onClose, treeId, treeName, getTreeImage }) {
+export default function PrintOrderModal({ onClose, treeId, treeName, getTreeImage, personCount = 0 }) {
   const [step, setStep] = useState(1)
   const [template, setTemplate] = useState('truyen_thong')
   const [customBg, setCustomBg] = useState(null)      // data URL của ảnh user tự upload
@@ -126,13 +126,17 @@ export default function PrintOrderModal({ onClose, treeId, treeName, getTreeImag
     return () => window.removeEventListener('resize', h)
   }, [])
 
+  const loadTreeImage = () => {
+    setLoadingImage(true)
+    getTreeImage()
+      .then(url => setTreeImage(url))
+      .catch(() => toast.error('Không thể tải sơ đồ'))
+      .finally(() => setLoadingImage(false))
+  }
+
   useEffect(() => {
-    if (step === 2 && !treeImage) {
-      setLoadingImage(true)
-      getTreeImage()
-        .then(url => setTreeImage(url))
-        .catch(() => {})
-        .finally(() => setLoadingImage(false))
+    if (step === 2 && !treeImage && personCount <= 200) {
+      loadTreeImage()
     }
   }, [step])
 
@@ -354,7 +358,18 @@ export default function PrintOrderModal({ onClose, treeId, treeName, getTreeImag
                         <div className="spinner" />
                         <span style={{ fontSize: '0.75rem', color: '#9a7c60' }}>Đang tải sơ đồ...</span>
                       </div>
-                    : <FramePreview templateId={template} treeImage={treeImage} treeName={treeName} bgImageOverride={resolvedBgImage} width={280} height={210} />
+                    : personCount > 200 && !treeImage
+                      ? <div style={{ width: 280, height: 210, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F0E8', border: '1px solid #C4A882', borderRadius: 4, flexDirection: 'column', gap: 8, padding: 16 }}>
+                          <span style={{ fontSize: '1.8rem' }}>🌳</span>
+                          <span style={{ fontSize: '0.72rem', color: '#9a7c60', textAlign: 'center', lineHeight: 1.6 }}>
+                            Cây lớn ({personCount} người)<br />có thể mất 10–30 giây
+                          </span>
+                          <button onClick={loadTreeImage}
+                            style={{ marginTop: 4, padding: '5px 14px', borderRadius: 5, border: '1px solid #8B4513', background: '#8B4513', color: '#fff', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, fontFamily: 'Lora,Georgia,serif' }}>
+                            Tải sơ đồ
+                          </button>
+                        </div>
+                      : <FramePreview templateId={template} treeImage={treeImage} treeName={treeName} bgImageOverride={resolvedBgImage} width={280} height={210} />
                   }
                 </div>
                 <div style={{ background: '#F5F0E8', borderRadius: 8, padding: '10px 14px', border: '1px solid #C4A882', fontSize: '0.8rem', color: '#5a3820', lineHeight: 1.7 }}>

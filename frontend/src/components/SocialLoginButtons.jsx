@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom'
 const VITE_GOOGLE_CLIENT_ID = import.meta.env.VITE_VITE_GOOGLE_CLIENT_ID || ''
 const VITE_FACEBOOK_APP_ID = import.meta.env.VITE_VITE_FACEBOOK_APP_ID || ''
 const hasGoogle = !!VITE_GOOGLE_CLIENT_ID
-const hasFacebook = !!VITE_FACEBOOK_APP_ID
+const hasFacebook = false // tạm ẩn
 
 function loadScript(src, id) {
   return new Promise((resolve) => {
