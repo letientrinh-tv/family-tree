@@ -16,5 +16,11 @@
       "path": "/api/cron/daily",
       "schedule": "0 1 * * *"
     }
+  ],
+  "headers": [
+    {
+      "source": "/api/cron/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+    }
   ]
 }

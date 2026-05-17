@@ -20,7 +20,8 @@
       "Bash(Get-Content \"C:\\\\Users\\\\VN\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--laragon-www-family-tree\\\\2b6e02e6-dac6-42de-9fd9-f84fb54ec451\\\\tasks\\\\b7ruajfcn.output\" -Wait -Tail 30)",
       "Bash(Start-Sleep 2)",
       "Bash(py --version)",
-      "Bash(python3 -m pip install \"psycopg[binary]\" -q)"
+      "Bash(python3 -m pip install \"psycopg[binary]\" -q)",
+      "Bash(dir \"d:\\\\laragon\\\\www\\\\family-tree\")"
     ]
   }
 }

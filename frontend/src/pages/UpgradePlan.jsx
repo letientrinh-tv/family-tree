@@ -93,10 +93,16 @@ function PaymentModal({ plan, user, onClose, onSuccess, plans }) {
   const p = plans[plan] || DEFAULT_PLANS[plan] || DEFAULT_PLANS.free
   const [tab, setTab] = useState('qr')
   const [confirming, setConfirming] = useState(false)
+  const [bankInfo, setBankInfo] = useState(null)
   const transferContent = `NANGCAP ${user?.username?.toUpperCase()} ${plan.toUpperCase()}`
-  const bankAccount = '1234 5678 9012'
-  const bankName = 'Vietcombank'
-  const accountName = 'NGUYEN VAN A'
+
+  useEffect(() => {
+    apiClient.get('/settings/bank').then(res => setBankInfo(res.data)).catch(() => {})
+  }, [])
+
+  const bankAccount = bankInfo?.account_number || ''
+  const bankName = bankInfo?.bank_name || ''
+  const accountName = bankInfo?.account_holder || ''
 
   const handleConfirm = async () => {
     setConfirming(true)
@@ -172,7 +178,10 @@ function PaymentModal({ plan, user, onClose, onSuccess, plans }) {
                 border: '3px solid #8B4513', borderRadius: 10,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.12)', marginBottom: 12,
               }}>
-                <FakeQR size={140} />
+                {bankInfo?.qr_code_url
+                  ? <img src={bankInfo.qr_code_url} alt="QR chuyển khoản" style={{ width: 140, height: 140, objectFit: 'contain', display: 'block' }} />
+                  : <FakeQR size={140} />
+                }
               </div>
               <div style={{
                 background: '#F5F0E8', borderRadius: 8, padding: '10px 16px',
@@ -190,6 +199,11 @@ function PaymentModal({ plan, user, onClose, onSuccess, plans }) {
 
           {tab === 'bank' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {!bankInfo?.account_number && (
+                <div style={{ padding: '10px 14px', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, fontSize: '0.8rem', color: '#9a3412' }}>
+                  ⚠️ Admin chưa cấu hình thông tin ngân hàng. Vui lòng liên hệ admin để được hỗ trợ.
+                </div>
+              )}
               {[
                 { label: 'Ngân hàng', value: bankName },
                 { label: 'Số tài khoản', value: bankAccount },
