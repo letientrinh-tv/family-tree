@@ -214,6 +214,9 @@ def get_upcoming_events(db: Session, user_id: int, days_window: int = 30) -> Lis
 # ── Message builders ──────────────────────────────────────────
 
 def _build_email_html(username: str, events: List[dict]) -> str:
+    from datetime import datetime
+    sent_at = datetime.now().strftime("%d/%m/%Y %H:%M")
+
     rows = ""
     for e in events:
         label = "Sinh nhật" if e["event_type"] == "birthday" else "Ngày giỗ"
@@ -236,7 +239,7 @@ def _build_email_html(username: str, events: List[dict]) -> str:
     border:1px solid #C4A882;border-radius:10px;padding:28px;">
   <div style="border-bottom:2px solid #C4A882;padding-bottom:14px;margin-bottom:20px;">
     <h1 style="color:#2D5016;font-size:1.5rem;margin:0 0 4px 0;">🌳 Gia Phả Việt</h1>
-    <p style="color:#7a5c3e;margin:0;font-size:0.9rem;">Nhắc nhở sự kiện gia đình</p>
+    <p style="color:#7a5c3e;margin:0;font-size:0.9rem;">Nhắc nhở sự kiện gia đình &nbsp;·&nbsp; {sent_at}</p>
   </div>
   <p style="color:#3C2415;">Xin chào <strong>{username}</strong>,</p>
   <p style="color:#3C2415;">Dưới đây là các sự kiện sắp diễn ra trong gia phả của bạn:</p>
@@ -263,18 +266,28 @@ def _build_email_html(username: str, events: List[dict]) -> str:
 
 def _build_short_message(username: str, events: List[dict]) -> str:
     lines = [f"🌳 Gia Phả Việt nhắc {username}:"]
-    for e in events[:5]:
+    for e in events:
         label = "Sinh nhật" if e["event_type"] == "birthday" else "Ngày giỗ"
         days = "hôm nay!" if e["days_until"] == 0 else f"còn {e['days_until']} ngày"
         lines.append(f"• {label} {e['person_name']} ({e['tree_name']}) – {days}")
-    if len(events) > 5:
-        lines.append(f"... và {len(events) - 5} sự kiện khác")
     return "\n".join(lines)
 
 
 # ── Daily job ─────────────────────────────────────────────────
 
-def run_daily_notifications(db: Session):
+def _already_sent(db: Session, user_id: int, channel: str, today_str: str) -> bool:
+    return db.query(models.NotificationLog).filter(
+        models.NotificationLog.user_id == user_id,
+        models.NotificationLog.channel == channel,
+        models.NotificationLog.event_date == today_str,
+        models.NotificationLog.success == True,
+    ).first() is not None
+
+
+def run_daily_notifications(db: Session) -> dict:
+    today_str = str(date.today())
+    summary = []
+
     settings_list = db.query(models.NotificationSetting).filter(
         models.NotificationSetting.active == True
     ).all()
@@ -288,54 +301,60 @@ def run_daily_notifications(db: Session):
             continue
 
         events = get_upcoming_events(db, user.id, setting.days_before)
+        user_result = {
+            "user": user.username,
+            "days_before": setting.days_before,
+            "events_count": len(events),
+            "sent": [],
+            "skipped": [],
+        }
+
         if not events:
+            user_result["skipped"].append("no_events")
+            summary.append(user_result)
             continue
 
-        today_str = str(date.today())
-
-        def _already_sent(channel: str) -> bool:
-            return db.query(models.NotificationLog).filter(
-                models.NotificationLog.user_id == user.id,
-                models.NotificationLog.channel == channel,
-                models.NotificationLog.event_date == today_str,
-                models.NotificationLog.success == True,
-            ).first() is not None
-
         # Email
-        if setting.email_enabled and not _already_sent("email"):
+        if not setting.email_enabled:
+            user_result["skipped"].append("email:disabled")
+        elif _already_sent(db, user.id, "email", today_str):
+            user_result["skipped"].append("email:already_sent_today")
+        else:
             email_to = setting.notify_email or user.email
             subject = f"Gia Phả Việt – {len(events)} sự kiện sắp tới"
             body = _build_email_html(user.username, events)
             ok, err = send_email(email_to, subject, body)
             for e in events:
                 db.add(models.NotificationLog(
-                    user_id=user.id,
-                    person_id=e["person_id"],
-                    event_type=e["event_type"],
-                    event_date=today_str,
-                    channel="email",
-                    recipient=email_to,
-                    success=ok,
-                    error_message=None if ok else err,
+                    user_id=user.id, person_id=e["person_id"],
+                    event_type=e["event_type"], event_date=today_str,
+                    channel="email", recipient=email_to,
+                    success=ok, error_message=None if ok else err,
                 ))
+            user_result["sent"].append(f"email:{email_to}:{'ok' if ok else err}")
 
         # Zalo
-        if setting.zalo_enabled and setting.notify_phone and not _already_sent("zalo"):
+        if not setting.zalo_enabled or not setting.notify_phone:
+            user_result["skipped"].append("zalo:disabled_or_no_phone")
+        elif _already_sent(db, user.id, "zalo", today_str):
+            user_result["skipped"].append("zalo:already_sent_today")
+        else:
             msg = _build_short_message(user.username, events)
             ok, err = send_zalo(setting.notify_phone, msg)
             db.add(models.NotificationLog(
-                user_id=user.id,
-                person_id=None,
-                event_type="summary",
-                event_date=today_str,
-                channel="zalo",
-                recipient=setting.notify_phone,
-                success=ok,
+                user_id=user.id, person_id=None, event_type="summary",
+                event_date=today_str, channel="zalo",
+                recipient=setting.notify_phone, success=ok,
                 error_message=None if ok else err,
             ))
+            user_result["sent"].append(f"zalo:{'ok' if ok else err}")
 
         # Telegram
-        if setting.telegram_enabled and setting.telegram_chat_id and not _already_sent("telegram"):
+        if not setting.telegram_enabled or not setting.telegram_chat_id:
+            user_result["skipped"].append("telegram:disabled_or_not_linked")
+        elif _already_sent(db, user.id, "telegram", today_str):
+            user_result["skipped"].append("telegram:already_sent_today")
+        else:
             msg = _build_short_message(user.username, events)
             ok, err = send_telegram(setting.telegram_chat_id, msg)
             db.add(models.NotificationLog(
@@ -344,20 +363,25 @@ def run_daily_notifications(db: Session):
                 recipient=setting.telegram_chat_id, success=ok,
                 error_message=None if ok else err,
             ))
+            user_result["sent"].append(f"telegram:{'ok' if ok else err}")
 
-        # Facebook Messenger – max 1 tin/ngày/user, dùng MESSAGE_TAG tránh spam
-        if setting.facebook_enabled and setting.facebook_psid and not _already_sent("facebook"):
+        # Facebook
+        if not setting.facebook_enabled or not setting.facebook_psid:
+            user_result["skipped"].append("facebook:disabled_or_not_linked")
+        elif _already_sent(db, user.id, "facebook", today_str):
+            user_result["skipped"].append("facebook:already_sent_today")
+        else:
             msg = _build_short_message(user.username, events)
             ok, err = send_facebook(setting.facebook_psid, msg)
             db.add(models.NotificationLog(
-                user_id=user.id,
-                person_id=None,
-                event_type="summary",
-                event_date=today_str,
-                channel="facebook",
-                recipient=setting.facebook_psid,
-                success=ok,
+                user_id=user.id, person_id=None, event_type="summary",
+                event_date=today_str, channel="facebook",
+                recipient=setting.facebook_psid, success=ok,
                 error_message=None if ok else err,
             ))
+            user_result["sent"].append(f"facebook:{'ok' if ok else err}")
 
         db.commit()
+        summary.append(user_result)
+
+    return {"date": today_str, "users_processed": len(summary), "summary": summary}

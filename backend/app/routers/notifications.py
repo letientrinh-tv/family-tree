@@ -51,10 +51,13 @@ def update_settings(
 
 @router.get("/upcoming", response_model=List[schemas.UpcomingEvent])
 def get_upcoming(
-    days: int = 30,
+    days: int = None,
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if days is None:
+        setting = _get_or_create_setting(current_user, db)
+        days = setting.days_before
     if days < 1 or days > 365:
         raise HTTPException(status_code=400, detail="days phải trong khoảng 1–365")
     return get_upcoming_events(db, current_user.id, days)
@@ -79,7 +82,7 @@ def send_test_notification(
     setting = _get_or_create_setting(current_user, db)
     results = {}
 
-    events = get_upcoming_events(db, current_user.id, 30)
+    events = get_upcoming_events(db, current_user.id, setting.days_before)
     sample = events or [{
         "person_name": "Nguyễn Văn Ví Dụ",
         "event_type": "birthday",

@@ -109,15 +109,15 @@ export default function Notifications() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [settingsRes, upcomingRes, logsRes] = await Promise.all([
+      const [settingsRes, logsRes] = await Promise.all([
         apiClient.get('/notifications/settings'),
-        apiClient.get('/notifications/upcoming?days=60'),
         apiClient.get('/notifications/logs?limit=30'),
       ])
       setSettings(settingsRes.data)
       setForm(settingsRes.data)
-      setUpcomingEvents(upcomingRes.data)
       setLogs(logsRes.data)
+      const upcomingRes = await apiClient.get('/notifications/upcoming')
+      setUpcomingEvents(upcomingRes.data)
     } catch {
       toast.error('Không thể tải dữ liệu thông báo')
     } finally {
@@ -145,6 +145,8 @@ export default function Notifications() {
       setSettings(res.data)
       setForm(res.data)
       toast.success('Đã lưu cài đặt thông báo')
+      setLoadingUpcoming(true)
+      apiClient.get('/notifications/upcoming').then(r => setUpcomingEvents(r.data)).finally(() => setLoadingUpcoming(false))
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Lưu thất bại')
     } finally {
@@ -571,7 +573,7 @@ export default function Notifications() {
           <div style={{ gridColumn: '1 / -1' }}>
             <div style={{ display: 'flex', gap: 0, marginBottom: -1 }}>
               {[
-                { key: 'upcoming', label: '📅 Sự kiện sắp tới' },
+                { key: 'upcoming', label: `📅 Sự kiện trong ${settings?.days_before ?? form?.days_before ?? 7} ngày tới` },
                 { key: 'logs', label: '📋 Lịch sử gửi' },
               ].map(tab => (
                 <button
@@ -614,7 +616,7 @@ export default function Notifications() {
                     <div style={{ textAlign: 'center', padding: 40 }}>
                       <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🎉</div>
                       <div style={{ color: '#7a5c3e', fontSize: '0.9rem' }}>
-                        Không có sự kiện nào trong 60 ngày tới
+                        Không có sự kiện nào trong {settings?.days_before ?? form?.days_before ?? 7} ngày tới
                       </div>
                     </div>
                   ) : (

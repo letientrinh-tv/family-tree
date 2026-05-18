@@ -20,13 +20,13 @@ def _check_secret(request: Request):
 @router.get("/daily")
 def run_daily_cron_get(request: Request, db: Session = Depends(get_db)):
     _check_secret(request)
-    run_daily_notifications(db)
-    return {"status": "ok"}
+    result = run_daily_notifications(db)
+    return {"status": "ok", **result}
 
 
 # Giữ POST để có thể trigger thủ công
 @router.post("/daily")
 def run_daily_cron_post(request: Request, db: Session = Depends(get_db)):
     _check_secret(request)
-    run_daily_notifications(db)
-    return {"status": "ok"}
+    result = run_daily_notifications(db)
+    return {"status": "ok", **result}
