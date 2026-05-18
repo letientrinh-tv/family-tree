@@ -360,6 +360,46 @@ export default function Notifications() {
                       <div style={{ fontSize: '0.72rem', color: '#9a7c60', marginTop: 4 }}>Để trống dùng email tài khoản</div>
                     </div>
 
+                    {/* Zalo */}
+                    <div style={{ background: '#E8F5E9', borderRadius: 8, padding: 16, border: '1px solid #a5d6a7', position: 'relative', overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <span style={{ fontWeight: 700, color: '#006838', fontSize: '0.92rem' }}>💬 Zalo</span>
+                        <Toggle checked={false} onChange={() => {}} disabled />
+                      </div>
+                      <div style={{
+                        background: '#fff8e1', border: '1px dashed #ffd54f',
+                        borderRadius: 6, padding: '10px 12px',
+                        fontSize: '0.8rem', color: '#5d4037', lineHeight: 1.6,
+                        display: 'flex', alignItems: 'flex-start', gap: 8,
+                      }}>
+                        <span style={{ fontSize: '1rem', flexShrink: 0 }}>🚧</span>
+                        <div>
+                          <strong>Chức năng đang phát triển</strong><br />
+                          Thông báo qua Zalo sẽ được cập nhật trong phiên bản sau.
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Facebook */}
+                    <div style={{ background: '#E8EAF6', borderRadius: 8, padding: 16, border: '1px solid #9fa8da', position: 'relative', overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <span style={{ fontWeight: 700, color: '#1877F2', fontSize: '0.92rem' }}>📘 Facebook</span>
+                        <Toggle checked={false} onChange={() => {}} disabled />
+                      </div>
+                      <div style={{
+                        background: '#fff8e1', border: '1px dashed #ffd54f',
+                        borderRadius: 6, padding: '10px 12px',
+                        fontSize: '0.8rem', color: '#5d4037', lineHeight: 1.6,
+                        display: 'flex', alignItems: 'flex-start', gap: 8,
+                      }}>
+                        <span style={{ fontSize: '1rem', flexShrink: 0 }}>🚧</span>
+                        <div>
+                          <strong>Chức năng đang phát triển</strong><br />
+                          Thông báo qua Facebook sẽ được cập nhật trong phiên bản sau.
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Telegram */}
                     <div style={{ background: '#E3F2FD', borderRadius: 8, padding: 16, border: '1px solid #90caf9', opacity: form.active ? 1 : 0.6 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -689,6 +729,7 @@ export default function Notifications() {
           <strong style={{ color: '#92400e' }}>ℹ️ Hướng dẫn cài đặt:</strong><br />
           • <strong>Email:</strong> Nhập địa chỉ email để nhận thông báo. Để trống sẽ dùng email tài khoản.<br />
           • <strong>Telegram:</strong> Nhấn "Kết nối Telegram", mở bot và gửi START để liên kết tài khoản.<br />
+          • <strong>Zalo / Facebook:</strong> 🚧 Đang phát triển, sẽ có trong phiên bản tiếp theo.<br />
           • Hệ thống tự động gửi nhắc nhở lúc <strong>8:00 SA</strong> mỗi ngày.
         </div>
       </div>
